@@ -78,10 +78,33 @@ and a single call to `end(result)`. The shell owns the pause button, the time
 bar, the results panel, stars and stickers, which is what keeps ten games to
 one codebase.
 
-## Verifying changes
+## Tests
+
+The app has no runtime dependencies. The tests need a browser, so install the
+dev tooling first:
+
+```sh
+npm install
+npx playwright install chromium   # skip if you already have one, see below
+```
+
+```sh
+node tests/ai-strength.mjs        # no browser needed
+npm start &                       # serves on :8899 for the two browser suites
+node tests/smoke.mjs              # all 10 games x landscape/portrait/2-player
+node tests/e2e.mjs                # round lifecycle, stars, adaptive difficulty
+```
+
+If your environment already ships a Chromium that Playwright did not
+download, point the browser suites at it:
+
+```sh
+CHROMIUM_PATH=/path/to/chrome node tests/smoke.mjs
+```
+
+`tests/ai-strength.mjs` is the one worth watching: it plays the difficulty
+tiers against each other and prints the ladder, because "the three settings
+are genuinely different" is the central claim of the design and is easy to
+break by accident.
 
 `jsconfig.json` turns on editor type checking against the JSDoc annotations.
-There is no test runner in the repo; the checks used during development were
-a headless browser pass over every game in landscape, portrait and
-two-player, and a set of AI-versus-AI runs confirming each difficulty ladder
-is monotonic.

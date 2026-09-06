@@ -18,7 +18,7 @@
 import { MiniGame } from '../engine/game.js';
 import { Thinker } from '../engine/ai.js';
 import { drawAnimal } from '../engine/animals.js';
-import { PLAYER, easeOut, fillCircle, fillRR, rr, text } from '../engine/draw.js';
+import { PLAYER, easeOut, fillCircle, fillRR, text } from '../engine/draw.js';
 
 const COLS = 6;
 const ROWS = 5;

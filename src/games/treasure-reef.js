@@ -23,7 +23,7 @@
  */
 
 import { MiniGame } from '../engine/game.js';
-import { Thinker, byTier } from '../engine/ai.js';
+import { Thinker } from '../engine/ai.js';
 import { drawAnimal } from '../engine/animals.js';
 import { PLAYER, fillCircle, fillRR, rr, star as starPath, text } from '../engine/draw.js';
 

@@ -8,7 +8,7 @@
  * scales to any tile size without going soft.
  */
 
-import { circle, fillCircle, poly, rr, shade } from './draw.js';
+import { fillCircle, poly, rr, shade } from './draw.js';
 
 /** @typedef {{id:string, body:string, face:string, ear:string, muzzle:string, accent:string}} Animal */
 

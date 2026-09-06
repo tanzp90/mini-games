@@ -18,7 +18,7 @@
 import { MiniGame } from '../engine/game.js';
 import { byTier } from '../engine/ai.js';
 import { drawAnimal } from '../engine/animals.js';
-import { PLAYER, bigButton, fillCircle, fillRR, shade, text } from '../engine/draw.js';
+import { PLAYER, bigButton, fillCircle, text } from '../engine/draw.js';
 import { drawAiChip, drawDivider, duelZones, inZone, toLocal, zoneAt } from '../engine/layout.js';
 
 const AI = [

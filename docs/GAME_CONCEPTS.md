@@ -253,3 +253,33 @@ Replacing the two "rarely winnable by the five-year-old" games moves the set's c
 - Games rated **rarely**: 2 → **0**
 - Genuine skill ceiling preserved by Colour Splash's 3-ply search, Treasure Reef's probability heatmap, and Penguin Slide's shot simulation.
 - The set now covers six categories: reaction, strategy, aim & physics, memory, push-your-luck and puzzle.
+
+
+---
+
+## 6. As built — where the implementation differs from this document
+
+The proposal above is what was approved; these are the points where building
+it changed the answer. Everything else shipped as described.
+
+| Area | Proposed | As built | Why |
+|---|---|---|---|
+| **Duel split** | Vertical divider in landscape, horizontal in portrait | **Horizontal divider in both orientations**, far half rotated 180° | Two children sharing a tablet sit across from each other and each wants the half nearest them. That is a horizontal divider whichever way the tablet is turned. One code path, and each half simply lays itself out from its own aspect ratio — wide strips in landscape, near-square in portrait — so portrait is a genuine layout rather than a letterboxed fallback. |
+| **Loop the Line opponent** | A translucent ghost line on your own board | The opponent solves **its own half**, beside yours | The duel layout already gives each player a half. Watching the other board fill up is the same race made clearer, and it means solo and two-player are the same screen. |
+| **Treasure Reef placement** | Drag each chest onto your grid, tap to rotate | **Shuffle and accept**: one button re-rolls the layout, one accepts it | A five-year-old should not have to fight a layout editor before the game starts. Re-rolling until you like the look of it is the same decision made in one tap. |
+| **Memory Zoo board size** | Scales with an age setting | Scales with the **difficulty tier** (12 / 16 / 20 cards solo, 16 in two-player) | One fewer setting to explain, and it means Rocket is a harder board as well as a sharper opponent. |
+| **Rope Rumble cues** | Occasional double-lights and fake-outs | A **dark beat**: roughly one beat in ten lights nothing, and tapping then stalls you | Double-lights need two fingers, which is exactly the strength contest the game exists to avoid. A dark beat tests the same attention with one finger. |
+| **Star Maze stars** | A fixed scatter | Stars **replenish** as they are collected | A fixed scatter empties out and the last twenty seconds of the round go dead. |
+| **Technical shape** | TypeScript + Vite | **Plain ES modules, no build step, no dependencies** | It guarantees the app runs from any static host and cannot fail to build between a change and a child playing the game. The cost is editor-only type checking through JSDoc and `jsconfig.json` rather than a compiler gate; for a codebase this size that trade came out in favour of never having a broken build. |
+
+### Verification
+
+- **Smoke** — all ten games opened in landscape, portrait and two-player, poked at random, checked for runtime errors. 30 configurations, clean.
+- **End-to-end** — a round played to its own conclusion, results reported, stars persisted, adaptive difficulty stepped up and down and stayed put when switched off, pause/resume/quit.
+- **Difficulty ladders** — measured rather than asserted:
+
+  | Game | Turtle | Rabbit | Rocket |
+  |---|---|---|---|
+  | Colour Splash (win rate for the stronger tier) | — | 94% vs Turtle | 77% vs Rabbit, 96% vs Turtle |
+  | Treasure Reef (mean digs to clear a 36-square board) | 29.2 | 21.9 | 18.1 |
+  | Memory Zoo (mean flips per pair found) | 9.89 | 4.14 | 3.90 |
