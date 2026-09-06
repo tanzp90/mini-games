@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#fdfaf4">
+<meta name="description" content="Ten mini games for one or two players, age five and up.">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<title>Animal Arcade</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.svg">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- ============================= PICKER ============================= -->
+<section class="screen" id="screen-home" data-screen="home">
+  <header class="home-head">
+    <div class="brand">
+      <canvas class="brand-mark" id="brand-mark" width="120" height="120" aria-hidden="true"></canvas>
+      <div>
+        <h1>Animal Arcade</h1>
+        <p class="brand-sub">Ten games &middot; one or two players</p>
+      </div>
+    </div>
+    <div class="home-actions">
+      <button class="chip" id="btn-album" type="button">
+        <span class="chip-ico" aria-hidden="true">&#9733;</span>
+        <span class="chip-label"><span id="star-total">0</span></span>
+      </button>
+      <button class="chip" id="btn-settings" type="button" aria-label="Settings">
+        <span class="chip-ico" aria-hidden="true">&#9881;</span>
+      </button>
+    </div>
+  </header>
+  <div class="picker" id="picker"></div>
+</section>
+
+<!-- ============================== SETUP ============================= -->
+<section class="screen" id="screen-setup" data-screen="setup" hidden>
+  <button class="back" id="setup-back" type="button" aria-label="Back to games">&#8592;</button>
+  <div class="setup-inner">
+    <div class="setup-head">
+      <canvas class="setup-mark" id="setup-mark" width="180" height="180" aria-hidden="true"></canvas>
+      <h2 id="setup-title">Game</h2>
+      <p class="setup-verb" id="setup-verb"></p>
+    </div>
+
+    <div class="choice-block">
+      <p class="choice-label">Players</p>
+      <div class="choice-row" id="mode-row">
+        <button class="choice" data-mode="1p" type="button">
+          <canvas class="choice-art" width="150" height="110" data-art="one" aria-hidden="true"></canvas>
+          <span>1 player</span>
+        </button>
+        <button class="choice" data-mode="2p" type="button">
+          <canvas class="choice-art" width="150" height="110" data-art="two" aria-hidden="true"></canvas>
+          <span>2 players</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="choice-block" id="difficulty-block">
+      <p class="choice-label">How tricky?</p>
+      <div class="choice-row" id="diff-row">
+        <button class="choice diff" data-diff="0" type="button">
+          <canvas class="choice-art" width="150" height="110" data-art="turtle" aria-hidden="true"></canvas>
+          <span>Easy</span>
+        </button>
+        <button class="choice diff" data-diff="1" type="button">
+          <canvas class="choice-art" width="150" height="110" data-art="rabbit" aria-hidden="true"></canvas>
+          <span>Medium</span>
+        </button>
+        <button class="choice diff" data-diff="2" type="button">
+          <canvas class="choice-art" width="150" height="110" data-art="rocket" aria-hidden="true"></canvas>
+          <span>Hard</span>
+        </button>
+      </div>
+    </div>
+
+    <button class="play-btn" id="btn-play" type="button">
+      <span class="play-tri" aria-hidden="true"></span>
+      <span>Play</span>
+    </button>
+  </div>
+</section>
+
+<!-- ============================== PLAY ============================== -->
+<section class="screen play" id="screen-play" data-screen="play" hidden>
+  <canvas id="stage"></canvas>
+  <div class="timebar" id="timebar"><i id="timebar-fill"></i></div>
+  <button class="pause-btn" id="btn-pause" type="button" aria-label="Pause">
+    <span aria-hidden="true">&#10073;&#10073;</span>
+  </button>
+</section>
+
+<!-- ============================== PAUSE ============================= -->
+<section class="screen overlay" id="screen-pause" data-screen="pause" hidden>
+  <div class="panel">
+    <h2>Paused</h2>
+    <div class="panel-row">
+      <button class="round-btn resume" id="btn-resume" type="button" aria-label="Keep playing">
+        <span class="play-tri big" aria-hidden="true"></span>
+      </button>
+      <button class="round-btn" id="btn-restart" type="button" aria-label="Start again">
+        <span aria-hidden="true">&#8635;</span>
+      </button>
+      <button class="round-btn" id="btn-quit" type="button" aria-label="Back to games">
+        <span aria-hidden="true">&#9632;</span>
+      </button>
+    </div>
+  </div>
+</section>
+
+<!-- ============================= RESULTS ============================ -->
+<section class="screen overlay" id="screen-result" data-screen="result" hidden>
+  <div class="panel result-panel">
+    <canvas class="result-art" id="result-art" width="360" height="200" aria-hidden="true"></canvas>
+    <h2 id="result-title">Well played</h2>
+    <div class="stars" id="result-stars" aria-hidden="true"></div>
+    <p class="result-score" id="result-score"></p>
+    <p class="result-note" id="result-note"></p>
+    <div class="panel-row">
+      <button class="play-btn" id="btn-again" type="button">
+        <span class="play-tri" aria-hidden="true"></span>
+        <span>Again</span>
+      </button>
+      <button class="round-btn" id="btn-home" type="button" aria-label="Back to games">
+        <span aria-hidden="true">&#9632;</span>
+      </button>
+    </div>
+  </div>
+</section>
+
+<!-- ============================== ALBUM ============================= -->
+<section class="screen" id="screen-album" data-screen="album" hidden>
+  <button class="back" id="album-back" type="button" aria-label="Back to games">&#8592;</button>
+  <div class="album-inner">
+    <h2>Sticker album</h2>
+    <p class="album-sub">Win a game to earn its sticker. Win by a mile for the gold one.</p>
+    <div class="album-grid" id="album-grid"></div>
+  </div>
+</section>
+
+<!-- ============================= SETTINGS =========================== -->
+<section class="screen" id="screen-settings" data-screen="settings" hidden>
+  <button class="back" id="settings-back" type="button" aria-label="Back to games">&#8592;</button>
+  <div class="settings-inner">
+    <h2>Settings</h2>
+    <label class="toggle">
+      <input type="checkbox" id="opt-sound">
+      <span class="toggle-body"><span class="knob"></span></span>
+      <span class="toggle-text"><b>Sound</b><small>Bleeps, pops and cheers</small></span>
+    </label>
+    <label class="toggle">
+      <input type="checkbox" id="opt-adaptive">
+      <span class="toggle-body"><span class="knob"></span></span>
+      <span class="toggle-text"><b>Adjust difficulty automatically</b>
+        <small>Three wins in a row makes the opponent tougher, three losses makes it gentler</small></span>
+    </label>
+    <button class="danger" id="opt-reset" type="button">Erase all stars and stickers</button>
+    <p class="settings-foot">Everything is stored on this tablet only. No accounts, no adverts, nothing sent anywhere.</p>
+  </div>
+</section>
+
+<div class="rotate-hint" id="rotate-hint" hidden>
+  <p>Turn the tablet sideways for two players</p>
+</div>
+
+<script type="module" src="src/main.js"></script>
+</body>
+</html>

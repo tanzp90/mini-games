@@ -1,6 +1,6 @@
 # Tablet Mini-Games — Concept Proposal
 
-**Status:** Proposal for approval. Nothing built yet.
+**Status:** Approved. All five decisions settled — see section 5. Implementation in progress.
 **Audience:** 1–2 players, age 5+ (assume the 5-year-old cannot read).
 **Platform:** Tablet-first web app (touch only), portrait + landscape, offline-capable.
 
@@ -73,31 +73,31 @@ Animal cards flip up in the centre one at a time. When two cards showing the **s
 
 ---
 
-### 2. Drop Four — *strategy*
+### 2. Colour Splash — *strategy*
 **Verb:** tap · **2P layout:** shared board · **Round:** ~90 s
 
-Connect-four on a **6×5** grid (smaller than the classic 7×6 to keep rounds short). Tap a column, a disc drops with a satisfying thunk. Four in a row wins, and the winning line lights up and dances.
+An 11x11 grid of coloured, shaped tiles. You own the bottom-left corner, your opponent the top-right. On your turn, tap one of six colours from the palette bar: your whole territory flips to that colour and swallows every touching tile that already was it. You cannot take the colour your opponent is currently wearing. First past half the board wins.
 
-- **Replay:** the game itself — the state space is enormous and the skill ceiling is real; a 5-year-old and a 10-year-old can both enjoy it at their own Rocket/Turtle setting.
-- **Age-5 fit:** gravity does the hard part. The child only chooses *which column*, which is a 6-way choice with instant visual feedback.
-- **AI:** minimax with alpha-beta pruning.
-  - 🐢 depth 1 (blocks only immediate wins), 40% chance of playing a random legal column instead
-  - 🐰 depth 4, 10% blunder rate
-  - 🚀 depth 7 + opening book, no blunders
+- **Replay:** the grid is generated fresh each round, and the endgame is different every time because territory shape — not size — decides who can still grow.
+- **Age-5 fit:** the entire decision is "which of these six colours", presented as six big buttons. A child who simply picks the colour that grabs the most tiles plays a respectable game, and the flood animation is its own reward.
+- **AI:**
+  - Turtle: picks at random among colours that gain at least one tile
+  - Rabbit: greedy maximum gain, tie-broken toward the longer frontier
+  - Rocket: 3-ply search on (my tiles - their tiles), preferring colours that also deny the opponent their best reply
 
 ---
 
-### 3. Box It In — *strategy*
-**Verb:** tap · **2P layout:** shared board · **Round:** ~120 s
+### 3. Penguin Slide — *aim and physics*
+**Verb:** drag (pull back, release) · **2P layout:** shared board · **Round:** ~90 s
 
-Dots and boxes on a 4×4 box grid. Tap the gap between two dots to draw a line. Complete a square and it fills with your colour and your animal face, and you go again.
+An icy lane seen from above with target rings at the far end. Pull your penguin back and let go — it slides, spins and bumps. Penguins knock each other out of the rings. After four slides each, whoever sits closest to the centre takes the end; best of three ends wins the round.
 
-- **Replay:** short game, wildly different endgames; the chain-sacrifice idea is a genuine "aha" a 7-year-old will discover on their own.
-- **Age-5 fit:** the youngest players play it as "colour in the squares" and still have fun; strategy is optional depth, not an entry requirement.
-- **AI:** three genuinely different policies.
-  - 🐢 random legal move (will hand over chains constantly)
-  - 🐰 greedy: takes every available box, otherwise avoids giving away a third side
-  - 🚀 chain-and-parity aware: counts chain lengths and deliberately sacrifices to control the endgame
+- **Replay:** every end is a new physical arrangement, and the last slide of an end is a genuine dilemma — go for the centre, or knock theirs out?
+- **Age-5 fit:** pull back and let go is the same motion as rolling a ball across a floor. No timing, no precision, and a lucky slide genuinely wins. The only game in the set built on physics.
+- **AI:** aiming error plus shot selection.
+  - Turtle: ±18° angle, ±25% power, always aims at the centre and never plays a takeout
+  - Rabbit: ±7° angle, ±10% power, plays the obvious takeout when losing the end
+  - Rocket: ±2.5° angle, ±4% power, simulates candidate shots to choose between drawing, takeout and guarding
 
 ---
 
@@ -204,8 +204,8 @@ Each animal must be connected to its matching home by tracing a path with one fi
 | # | Game | Category | Verb | 2P layout | Beatable by a 5-year-old? |
 |---|---|---|---|---|---|
 | 1 | Snap Safari | Reaction | tap | duel | Sometimes |
-| 2 | Drop Four | Strategy | tap | shared | Rarely (vs. older sibling) |
-| 3 | Box It In | Strategy | tap | shared | Rarely |
+| 2 | Colour Splash | Strategy | tap | shared | Sometimes |
+| 3 | Penguin Slide | Aim & physics | drag | shared | **Often** |
 | 4 | Memory Zoo | Memory | tap | shared | **Often** |
 | 5 | Star Maze Dash | Dexterity | drag | shared | Sometimes |
 | 6 | Bubble Blitz | Dexterity | swipe | duel | Sometimes |
@@ -217,27 +217,39 @@ Each animal must be connected to its matching home by tracing a path with one fi
 Deliberate properties of the set:
 
 - **Every input verb is covered** — tap, drag, swipe, trace, fast-tap — so the collection feels varied rather than like ten reskins.
-- **Four games are winnable by the youngest player through luck or attention rather than skill.** In a mixed-age household this is what stops the tablet being abandoned after ten minutes.
-- **Three games have a real skill ceiling** (Drop Four, Box It In, Treasure Reef) so a parent or older child stays engaged.
+- **Four games are winnable by the youngest player through luck or attention rather than skill** (Memory Zoo, Penguin Slide, Rope Rumble, Ice Cracker). In a mixed-age household this is what stops the tablet being abandoned after ten minutes.
+- **Three games have a real skill ceiling** (Colour Splash, Treasure Reef, Penguin Slide) so a parent or older child stays engaged.
 - **Every game has a legitimate three-tier AI ladder**, not a fake one — each ladder maps onto a real algorithmic axis (search depth, memory size, reaction distribution, risk model).
 
 ---
 
 ## 4. Proposed technical shape
 
-- **Static web app**, TypeScript + Canvas 2D, built with Vite. No game framework, no runtime dependencies.
+- **Static web app**, plain ES modules + Canvas 2D. **No build step, no dependencies, no framework** — `index.html` is the app. JSDoc annotations plus a `jsconfig.json` give editor-level type checking without introducing a compile stage that could break between a change and a child playing the game.
 - **PWA**, installable to the home screen, fully offline after first load. Critical for tablets handed to kids on planes and in cars.
 - **Shared `engine/` module**: fixed-timestep game loop, pointer/multi-touch input abstraction, audio, save/profile persistence (localStorage), seeded RNG, difficulty helpers, and the shared UI shell (picker, pause, results, sticker album).
 - **Each game is one module** implementing a common `MiniGame` interface (`init(seed, mode, difficulty)`, `update(dt)`, `render(ctx)`, `onPointer(evt)`, `getResult()`). This is what makes ten games tractable rather than ten codebases.
 - **No network, no accounts, no analytics, no ads, no purchases.** All state is local. This is the right default for a children's product and it removes an entire category of compliance work (COPPA/GDPR-K).
-- **Suggested build order:** engine + shell first, then Drop Four (validates turn-based + minimax AI), then Snap Safari (validates real-time + duel layout), then the remaining eight against those two templates.
+- **All art is drawn procedurally on canvas and all sound is synthesised with WebAudio.** No image or audio files anywhere, so the whole collection is a few hundred kilobytes and works offline from first load.
+- **Build order:** engine + shell first, then Colour Splash (validates turn-based play and search-based AI), then Snap Safari (validates real time and the duel layout), then the remaining eight against those two templates.
 
 ---
 
-## 5. Decisions needed before build
+## 5. Decisions — settled
 
-1. **Approve, cut, or swap any of the ten.** Which are in?
-2. **Build order** — all ten, or a vertical slice of 3 first to validate the feel on a real tablet?
-3. **Art direction** — the concepts above assume a friendly animal theme throughout. Alternatives: geometric/abstract (cheaper, ages better, less charming), or a mixed theme per game.
-4. **Adaptive difficulty** — ship it on or off by default?
-5. **Portrait support** — duel layout really needs landscape. Accept landscape-only for the four duel games, or design portrait fallbacks?
+| # | Question | Decision |
+|---|---|---|
+| 1 | Which of the ten are in? | Eight approved as proposed. **Drop Four and Box It In replaced** by **Colour Splash** and **Penguin Slide** — both classic-derived board games traded for games a five-year-old can actually win. |
+| 2 | Scope | **All ten**, built after the replacement. |
+| 3 | Art direction | **Friendly animals throughout**, drawn procedurally on canvas. |
+| 4 | Adaptive difficulty | **On by default.** Three straight wins steps the AI up, three straight losses steps it down, within the chosen tier's neighbourhood. Can be switched off in settings. |
+| 5 | Portrait support | **Portrait fallbacks for all four duel games.** In portrait the split runs horizontally — the top half's interface rotated 180° — instead of vertically. |
+
+### Consequences of the swap
+
+Replacing the two "rarely winnable by the five-year-old" games moves the set's centre of gravity toward the youngest player without losing depth for adults:
+
+- Games a five-year-old wins **often**: 3 → **4** (Memory Zoo, Rope Rumble, Ice Cracker, Penguin Slide)
+- Games rated **rarely**: 2 → **0**
+- Genuine skill ceiling preserved by Colour Splash's 3-ply search, Treasure Reef's probability heatmap, and Penguin Slide's shot simulation.
+- The set now covers six categories: reaction, strategy, aim & physics, memory, push-your-luck and puzzle.

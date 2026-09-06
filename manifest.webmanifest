@@ -1,0 +1,14 @@
+{
+  "name": "Animal Arcade",
+  "short_name": "Arcade",
+  "description": "Ten mini games for one or two players, age five and up.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "any",
+  "background_color": "#fdfaf4",
+  "theme_color": "#fdfaf4",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
