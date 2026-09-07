@@ -36,7 +36,16 @@ async function run(gameId, mode, difficulty, viewport) {
   const errors = [];
   page.on('pageerror', (e) => errors.push(`${gameId}/${mode}: ${e.message}`));
   page.on('console', (m) => {
-    if (m.type() === 'error') errors.push(`${gameId}/${mode} console: ${m.text()}`);
+    if (m.type() !== 'error') return;
+    errors.push(`${gameId}/${mode} console: ${m.text()}`);
+  });
+  page.on('response', (r) => {
+    if (r.status() < 400) return;
+    // A bare /favicon.ico request is the browser's own, not the app's: the
+    // single-file build carries no icon link and every real host supplies
+    // one. Anything else that 404s is a genuine missing resource.
+    if (new URL(r.url()).pathname === '/favicon.ico') return;
+    errors.push(`${gameId}/${mode} HTTP ${r.status()}: ${r.url()}`);
   });
 
   await page.goto(BASE, { waitUntil: 'networkidle' });

@@ -10,11 +10,25 @@ The design brief, the ten concepts and the reasoning behind them are in
 There is no build step. Serve the folder with any static server and open it:
 
 ```sh
-npx http-server -p 8080 .   # then open http://localhost:8080
+npm install          # only needed for the dev tooling below
+npm start            # then open http://localhost:8899
 ```
 
 Opening `index.html` straight off the filesystem will not work, because the
 app is made of ES modules and browsers block those over `file://`.
+
+### One playable file
+
+To hand the whole arcade to somebody as a single file — no server, no
+folder, nothing to install:
+
+```sh
+npm run build:single     # writes dist/animal-arcade.html
+```
+
+That inlines the stylesheet, the app icon and every module into one ~170 KB
+page. It is the same code; the only difference is that it ships no manifest
+and so does not register the service worker.
 
 ## The games
 

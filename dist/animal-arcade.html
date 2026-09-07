@@ -1,0 +1,5438 @@
+<title>Animal Arcade</title>
+<link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj4KICA8cmVjdCB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgcng9IjExMiIgZmlsbD0iI2ZkZmFmNCIvPgogIDxyZWN0IHg9IjU2IiB5PSIxODgiIHdpZHRoPSI0MDAiIGhlaWdodD0iMjY4IiByeD0iNzIiIGZpbGw9IiNmMmMxNGUiIHN0cm9rZT0iIzIwMzEzYSIgc3Ryb2tlLXdpZHRoPSIyNCIvPgogIDxjaXJjbGUgY3g9IjE1MCIgY3k9IjE5NiIgcj0iNzQiIGZpbGw9IiNmMDg3M2EiLz4KICA8cGF0aCBkPSJNOTYgMTUwIEwxMTIgNzQgTDE2OCAxMjggWiIgZmlsbD0iI2YwODczYSIvPgogIDxwYXRoIGQ9Ik0yMDQgMTUwIEwxODggNzQgTDEzMiAxMjggWiIgZmlsbD0iI2YwODczYSIvPgogIDxjaXJjbGUgY3g9IjEyNiIgY3k9IjE4OCIgcj0iMTMiIGZpbGw9IiMyYjJiMmIiLz4KICA8Y2lyY2xlIGN4PSIxNzQiIGN5PSIxODgiIHI9IjEzIiBmaWxsPSIjMmIyYjJiIi8+CiAgPGNpcmNsZSBjeD0iMzYyIiBjeT0iMTk2IiByPSI3NCIgZmlsbD0iI2ZiZmFmNyIgc3Ryb2tlPSIjMjAzMTNhIiBzdHJva2Utd2lkdGg9IjEwIi8+CiAgPGNpcmNsZSBjeD0iMzEyIiBjeT0iMTQwIiByPSIzMCIgZmlsbD0iIzJiMmIyYiIvPgogIDxjaXJjbGUgY3g9IjQxMiIgY3k9IjE0MCIgcj0iMzAiIGZpbGw9IiMyYjJiMmIiLz4KICA8ZWxsaXBzZSBjeD0iMzM4IiBjeT0iMTg4IiByeD0iMjAiIHJ5PSIyNiIgZmlsbD0iIzJiMmIyYiIvPgogIDxlbGxpcHNlIGN4PSIzODYiIGN5PSIxODgiIHJ4PSIyMCIgcnk9IjI2IiBmaWxsPSIjMmIyYjJiIi8+CiAgPHBhdGggZD0iTTI1NiAyNjggbDI2IDU4IDY0IDYgLTQ4IDQ0IDE0IDYyIC01NiAtMzQgLTU2IDM0IDE0IC02MiAtNDggLTQ0IDY0IC02IFoiIGZpbGw9IiNmZGZhZjQiLz4KPC9zdmc+Cg==">
+<style>
+/* ------------------------------------------------------------------
+   Animal Arcade shell.
+
+   The menus are DOM rather than canvas: the browser gives correct touch
+   targets, focus rings and text scaling for free, and gameplay keeps the
+   canvas to itself. Everything here is sized for a finger, not a cursor -
+   nothing interactive is below 64px, primary actions are 88px or more.
+   ------------------------------------------------------------------ */
+
+:root {
+  --paper: #fdfaf4;
+  --paper-2: #f3ece0;
+  --ink: #20313a;
+  --ink-soft: #5b7480;
+  --line: #e2d9c9;
+  --coral: #f26a4b;
+  --teal: #4aa3c7;
+  --sun: #f2c14e;
+  --leaf: #5cb85c;
+  --grape: #8a6db1;
+  --shadow: 0 2px 0 rgba(32, 49, 58, .1), 0 10px 24px -14px rgba(32, 49, 58, .5);
+  --font: "Baloo 2", Nunito, "Segoe UI Rounded", system-ui, -apple-system, sans-serif;
+  --safe-t: env(safe-area-inset-top, 0px);
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  --safe-l: env(safe-area-inset-left, 0px);
+  --safe-r: env(safe-area-inset-right, 0px);
+}
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: 17px;
+  /* A child's palm rests on the screen constantly; never select text. */
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: manipulation;
+}
+
+h1, h2 { margin: 0; font-weight: 800; letter-spacing: -.01em; }
+p { margin: 0; }
+
+/* ------------------------------- screens ------------------------------- */
+.screen {
+  position: fixed;
+  inset: 0;
+  padding: calc(16px + var(--safe-t)) calc(16px + var(--safe-r)) calc(16px + var(--safe-b)) calc(16px + var(--safe-l));
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  background: var(--paper);
+}
+.screen[hidden] { display: none; }
+
+.screen.overlay {
+  background: rgba(32, 49, 58, .55);
+  backdrop-filter: blur(3px);
+  align-items: center;
+  justify-content: center;
+}
+
+.screen.play { padding: 0; background: #e9f1f4; }
+
+/* ------------------------------- picker -------------------------------- */
+.home-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.brand { display: flex; align-items: center; gap: 12px; }
+.brand-mark { width: 60px; height: 60px; }
+.brand h1 { font-size: clamp(24px, 4.4vw, 34px); }
+.brand-sub { color: var(--ink-soft); font-size: 15px; font-weight: 600; }
+
+.home-actions { display: flex; gap: 10px; }
+.chip {
+  display: inline-flex; align-items: center; gap: 8px;
+  min-height: 64px; min-width: 64px; padding: 0 18px;
+  border: 3px solid var(--ink); border-radius: 20px;
+  background: #fff; color: var(--ink);
+  font: inherit; font-weight: 800; font-size: 19px;
+  box-shadow: var(--shadow); cursor: pointer;
+}
+.chip-ico { font-size: 22px; color: var(--sun); }
+#btn-settings .chip-ico { color: var(--ink-soft); }
+
+.picker {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 14px;
+  align-content: start;
+  padding-bottom: 12px;
+}
+@media (min-width: 900px) {
+  .picker { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+}
+
+.tile {
+  position: relative;
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  padding: 14px 10px 12px;
+  border: 3px solid var(--ink);
+  border-radius: 24px;
+  background: #fff;
+  box-shadow: var(--shadow);
+  font: inherit; color: var(--ink); cursor: pointer;
+  transition: transform .12s ease;
+}
+.tile:active { transform: translateY(3px); }
+.tile canvas { width: 100%; max-width: 132px; aspect-ratio: 1; height: auto; }
+.tile-name { font-weight: 800; font-size: 16px; text-align: center; line-height: 1.15; }
+.tile-stars { display: flex; gap: 3px; height: 16px; }
+.tile-stars i {
+  width: 14px; height: 14px; display: block;
+  background: var(--line);
+  clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
+}
+.tile-stars i.on { background: var(--sun); }
+
+/* -------------------------------- setup -------------------------------- */
+.back {
+  position: absolute; top: calc(14px + var(--safe-t)); left: calc(14px + var(--safe-l));
+  width: 64px; height: 64px; border-radius: 50%;
+  border: 3px solid var(--ink); background: #fff; color: var(--ink);
+  font-size: 28px; line-height: 1; cursor: pointer; box-shadow: var(--shadow); z-index: 3;
+}
+
+.setup-inner, .album-inner, .settings-inner {
+  flex: 1; min-height: 0; overflow-y: auto;
+  display: flex; flex-direction: column; align-items: center; gap: 20px;
+  padding: 8px 0 24px;
+}
+.setup-head { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.setup-mark { width: 96px; height: 96px; }
+#setup-title { font-size: clamp(26px, 5vw, 38px); }
+.setup-verb { color: var(--ink-soft); font-weight: 700; font-size: 16px; }
+
+.choice-block { display: flex; flex-direction: column; align-items: center; gap: 10px; width: 100%; }
+.choice-label { font-weight: 800; font-size: 15px; color: var(--ink-soft); text-transform: uppercase; letter-spacing: .1em; }
+.choice-row { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+
+.choice {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  width: 128px; min-height: 128px; padding: 10px 8px 12px;
+  border: 3px solid var(--line); border-radius: 22px;
+  background: #fff; font: inherit; font-weight: 800; font-size: 16px; color: var(--ink);
+  cursor: pointer; transition: transform .12s ease, border-color .12s ease;
+}
+.choice canvas { width: 96px; height: 70px; }
+.choice[aria-pressed="true"] {
+  border-color: var(--ink);
+  background: #fff7e6;
+  box-shadow: var(--shadow);
+  transform: translateY(-2px);
+}
+#difficulty-block[hidden] { display: none; }
+
+.play-btn {
+  display: inline-flex; align-items: center; gap: 12px;
+  min-height: 88px; padding: 0 40px;
+  border: 4px solid var(--ink); border-radius: 44px;
+  background: var(--leaf); color: #fff;
+  font: inherit; font-weight: 800; font-size: 28px;
+  box-shadow: 0 5px 0 #2f7a35, var(--shadow);
+  cursor: pointer;
+}
+.play-btn:active { transform: translateY(4px); box-shadow: 0 1px 0 #2f7a35; }
+.play-tri {
+  width: 0; height: 0; display: block;
+  border-left: 20px solid currentColor;
+  border-top: 13px solid transparent;
+  border-bottom: 13px solid transparent;
+}
+.play-tri.big { border-left-width: 26px; border-top-width: 17px; border-bottom-width: 17px; }
+
+/* -------------------------------- play --------------------------------- */
+#stage { display: block; width: 100%; height: 100%; touch-action: none; }
+
+.timebar {
+  position: absolute; top: var(--safe-t); left: 0; right: 0; height: 8px;
+  background: rgba(32, 49, 58, .12); pointer-events: none;
+}
+.timebar i { display: block; height: 100%; width: 100%; background: var(--leaf); transition: background .3s; }
+.timebar.low i { background: var(--coral); }
+.timebar[hidden] { display: none; }
+
+.pause-btn {
+  position: absolute;
+  /* Top-left, not top-centre: the centre of the top edge is where the far
+     player's controls live in every duel game, and where shared boards put
+     their timers. */
+  top: calc(14px + var(--safe-t)); left: calc(14px + var(--safe-l));
+  width: 58px; height: 58px; border-radius: 50%;
+  border: 3px solid var(--ink); background: rgba(255, 255, 255, .92); color: var(--ink);
+  font-size: 17px; letter-spacing: 2px; cursor: pointer; box-shadow: var(--shadow); z-index: 4;
+}
+
+/* ------------------------------- panels -------------------------------- */
+.panel {
+  width: min(560px, 92vw);
+  max-height: 92vh; overflow-y: auto;
+  display: flex; flex-direction: column; align-items: center; gap: 16px;
+  padding: 28px 26px;
+  border: 4px solid var(--ink); border-radius: 30px;
+  background: var(--paper); box-shadow: var(--shadow);
+  text-align: center;
+}
+.panel h2 { font-size: clamp(26px, 5vw, 34px); }
+.panel-row { display: flex; gap: 14px; align-items: center; justify-content: center; flex-wrap: wrap; }
+
+.round-btn {
+  width: 88px; height: 88px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 4px solid var(--ink); background: #fff; color: var(--ink);
+  font-size: 30px; cursor: pointer; box-shadow: var(--shadow);
+}
+.round-btn.resume { background: var(--leaf); color: #fff; }
+.round-btn:active { transform: translateY(3px); }
+
+.result-art { width: 100%; max-width: 320px; height: auto; aspect-ratio: 9 / 5; }
+.stars { display: flex; gap: 10px; }
+.stars i {
+  width: 44px; height: 44px; display: block; background: var(--line);
+  clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
+}
+.stars i.on { background: var(--sun); animation: pop .4s cubic-bezier(.2, 1.6, .4, 1) backwards; }
+.stars i.on:nth-child(2) { animation-delay: .12s; }
+.stars i.on:nth-child(3) { animation-delay: .24s; }
+@keyframes pop { from { transform: scale(0); } }
+
+.result-score { font-size: 30px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.result-note { color: var(--ink-soft); font-weight: 700; font-size: 15px; }
+
+/* -------------------------------- album -------------------------------- */
+.album-sub { color: var(--ink-soft); font-weight: 700; text-align: center; max-width: 44ch; }
+.album-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 12px; width: 100%; max-width: 760px;
+}
+.sticker {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 10px 6px; border-radius: 20px; border: 3px dashed var(--line); background: #fff;
+}
+.sticker.earned { border-style: solid; border-color: var(--ink); box-shadow: var(--shadow); }
+.sticker.gold { border-color: var(--sun); background: #fffaea; }
+.sticker canvas { width: 78px; height: 78px; }
+.sticker:not(.earned) canvas { opacity: .18; filter: grayscale(1); }
+.sticker span { font-size: 13px; font-weight: 800; text-align: center; line-height: 1.1; }
+
+/* ------------------------------ settings ------------------------------- */
+.settings-inner { max-width: 620px; margin: 0 auto; align-items: stretch; }
+.toggle {
+  display: flex; align-items: center; gap: 14px;
+  padding: 16px; border: 3px solid var(--line); border-radius: 22px; background: #fff;
+  cursor: pointer; min-height: 76px;
+}
+.toggle input { position: absolute; opacity: 0; width: 0; height: 0; }
+.toggle-body {
+  flex: 0 0 auto; width: 66px; height: 38px; border-radius: 19px;
+  background: var(--line); position: relative; transition: background .18s;
+}
+.knob {
+  position: absolute; top: 4px; left: 4px; width: 30px; height: 30px; border-radius: 50%;
+  background: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, .3); transition: transform .18s;
+}
+.toggle input:checked + .toggle-body { background: var(--leaf); }
+.toggle input:checked + .toggle-body .knob { transform: translateX(28px); }
+.toggle input:focus-visible + .toggle-body { outline: 3px solid var(--teal); outline-offset: 3px; }
+.toggle-text { display: flex; flex-direction: column; gap: 2px; text-align: left; }
+.toggle-text small { color: var(--ink-soft); font-weight: 600; line-height: 1.3; }
+
+.danger {
+  min-height: 64px; border-radius: 20px; border: 3px solid var(--coral);
+  background: #fff; color: var(--coral); font: inherit; font-weight: 800; font-size: 17px; cursor: pointer;
+}
+.settings-foot { color: var(--ink-soft); font-size: 14px; font-weight: 600; text-align: center; }
+
+/* ------------------------------ rotate hint ---------------------------- */
+.rotate-hint {
+  position: fixed; inset: auto 0 calc(16px + var(--safe-b)) 0;
+  display: flex; justify-content: center; pointer-events: none; z-index: 20;
+}
+.rotate-hint[hidden] { display: none; }
+.rotate-hint p {
+  background: var(--ink); color: #fff; font-weight: 800; font-size: 15px;
+  padding: 10px 18px; border-radius: 20px;
+}
+
+button:focus-visible, .toggle:focus-within { outline: 3px solid var(--teal); outline-offset: 3px; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .001ms !important; transition-duration: .001ms !important; }
+}
+
+</style>
+
+<!-- ============================= PICKER ============================= -->
+<section class="screen" id="screen-home" data-screen="home">
+  <header class="home-head">
+    <div class="brand">
+      <canvas class="brand-mark" id="brand-mark" width="120" height="120" aria-hidden="true"></canvas>
+      <div>
+        <h1>Animal Arcade</h1>
+        <p class="brand-sub">Ten games &middot; one or two players</p>
+      </div>
+    </div>
+    <div class="home-actions">
+      <button class="chip" id="btn-album" type="button">
+        <span class="chip-ico" aria-hidden="true">&#9733;</span>
+        <span class="chip-label"><span id="star-total">0</span></span>
+      </button>
+      <button class="chip" id="btn-settings" type="button" aria-label="Settings">
+        <span class="chip-ico" aria-hidden="true">&#9881;</span>
+      </button>
+    </div>
+  </header>
+  <div class="picker" id="picker"></div>
+</section>
+
+<!-- ============================== SETUP ============================= -->
+<section class="screen" id="screen-setup" data-screen="setup" hidden>
+  <button class="back" id="setup-back" type="button" aria-label="Back to games">&#8592;</button>
+  <div class="setup-inner">
+    <div class="setup-head">
+      <canvas class="setup-mark" id="setup-mark" width="180" height="180" aria-hidden="true"></canvas>
+      <h2 id="setup-title">Game</h2>
+      <p class="setup-verb" id="setup-verb"></p>
+    </div>
+
+    <div class="choice-block">
+      <p class="choice-label">Players</p>
+      <div class="choice-row" id="mode-row">
+        <button class="choice" data-mode="1p" type="button">
+          <canvas class="choice-art" width="150" height="110" data-art="one" aria-hidden="true"></canvas>
+          <span>1 player</span>
+        </button>
+        <button class="choice" data-mode="2p" type="button">
+          <canvas class="choice-art" width="150" height="110" data-art="two" aria-hidden="true"></canvas>
+          <span>2 players</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="choice-block" id="difficulty-block">
+      <p class="choice-label">How tricky?</p>
+      <div class="choice-row" id="diff-row">
+        <button class="choice diff" data-diff="0" type="button">
+          <canvas class="choice-art" width="150" height="110" data-art="turtle" aria-hidden="true"></canvas>
+          <span>Easy</span>
+        </button>
+        <button class="choice diff" data-diff="1" type="button">
+          <canvas class="choice-art" width="150" height="110" data-art="rabbit" aria-hidden="true"></canvas>
+          <span>Medium</span>
+        </button>
+        <button class="choice diff" data-diff="2" type="button">
+          <canvas class="choice-art" width="150" height="110" data-art="rocket" aria-hidden="true"></canvas>
+          <span>Hard</span>
+        </button>
+      </div>
+    </div>
+
+    <button class="play-btn" id="btn-play" type="button">
+      <span class="play-tri" aria-hidden="true"></span>
+      <span>Play</span>
+    </button>
+  </div>
+</section>
+
+<!-- ============================== PLAY ============================== -->
+<section class="screen play" id="screen-play" data-screen="play" hidden>
+  <canvas id="stage"></canvas>
+  <div class="timebar" id="timebar"><i id="timebar-fill"></i></div>
+  <button class="pause-btn" id="btn-pause" type="button" aria-label="Pause">
+    <span aria-hidden="true">&#10073;&#10073;</span>
+  </button>
+</section>
+
+<!-- ============================== PAUSE ============================= -->
+<section class="screen overlay" id="screen-pause" data-screen="pause" hidden>
+  <div class="panel">
+    <h2>Paused</h2>
+    <div class="panel-row">
+      <button class="round-btn resume" id="btn-resume" type="button" aria-label="Keep playing">
+        <span class="play-tri big" aria-hidden="true"></span>
+      </button>
+      <button class="round-btn" id="btn-restart" type="button" aria-label="Start again">
+        <span aria-hidden="true">&#8635;</span>
+      </button>
+      <button class="round-btn" id="btn-quit" type="button" aria-label="Back to games">
+        <span aria-hidden="true">&#9632;</span>
+      </button>
+    </div>
+  </div>
+</section>
+
+<!-- ============================= RESULTS ============================ -->
+<section class="screen overlay" id="screen-result" data-screen="result" hidden>
+  <div class="panel result-panel">
+    <canvas class="result-art" id="result-art" width="360" height="200" aria-hidden="true"></canvas>
+    <h2 id="result-title">Well played</h2>
+    <div class="stars" id="result-stars" aria-hidden="true"></div>
+    <p class="result-score" id="result-score"></p>
+    <p class="result-note" id="result-note"></p>
+    <div class="panel-row">
+      <button class="play-btn" id="btn-again" type="button">
+        <span class="play-tri" aria-hidden="true"></span>
+        <span>Again</span>
+      </button>
+      <button class="round-btn" id="btn-home" type="button" aria-label="Back to games">
+        <span aria-hidden="true">&#9632;</span>
+      </button>
+    </div>
+  </div>
+</section>
+
+<!-- ============================== ALBUM ============================= -->
+<section class="screen" id="screen-album" data-screen="album" hidden>
+  <button class="back" id="album-back" type="button" aria-label="Back to games">&#8592;</button>
+  <div class="album-inner">
+    <h2>Sticker album</h2>
+    <p class="album-sub">Win a game to earn its sticker. Win by a mile for the gold one.</p>
+    <div class="album-grid" id="album-grid"></div>
+  </div>
+</section>
+
+<!-- ============================= SETTINGS =========================== -->
+<section class="screen" id="screen-settings" data-screen="settings" hidden>
+  <button class="back" id="settings-back" type="button" aria-label="Back to games">&#8592;</button>
+  <div class="settings-inner">
+    <h2>Settings</h2>
+    <label class="toggle">
+      <input type="checkbox" id="opt-sound">
+      <span class="toggle-body"><span class="knob"></span></span>
+      <span class="toggle-text"><b>Sound</b><small>Bleeps, pops and cheers</small></span>
+    </label>
+    <label class="toggle">
+      <input type="checkbox" id="opt-adaptive">
+      <span class="toggle-body"><span class="knob"></span></span>
+      <span class="toggle-text"><b>Adjust difficulty automatically</b>
+        <small>Three wins in a row makes the opponent tougher, three losses makes it gentler</small></span>
+    </label>
+    <button class="danger" id="opt-reset" type="button">Erase all stars and stickers</button>
+    <p class="settings-foot">Everything is stored on this tablet only. No accounts, no adverts, nothing sent anywhere.</p>
+  </div>
+</section>
+
+<div class="rotate-hint" id="rotate-hint" hidden>
+  <p>Turn the tablet sideways for two players</p>
+</div>
+
+<script type="module">
+// src/engine/game.js
+var MiniGame = class {
+  /**
+   * Static description used by the picker and the setup screen.
+   * @type {{id:string, title:string, category:string, verb:string,
+   *         layout:'duel'|'shared', seconds:number, tint:string}}
+   */
+  static meta = {
+    id: "base",
+    title: "Base",
+    category: "",
+    verb: "tap",
+    layout: "shared",
+    seconds: 90,
+    tint: "#4aa3c7"
+  };
+  /** @param {GameEnv} env */
+  constructor(env) {
+    this.env = env;
+    this.w = env.w;
+    this.h = env.h;
+    this.over = false;
+    this.timeLeft = this.constructor.meta.seconds;
+  }
+  /** The canvas changed size or the tablet rotated. */
+  resize(w, h) {
+    this.w = w;
+    this.h = h;
+  }
+  /** Advance the simulation by a fixed step. */
+  update(_dt) {
+  }
+  /** @param {CanvasRenderingContext2D} _g */
+  render(_g) {
+  }
+  /** @param {import('./input.js').Ptr} _p */
+  pointer(_p) {
+  }
+  /** Release anything the game allocated. */
+  destroy() {
+  }
+  /**
+   * End the round exactly once.
+   * @param {RoundResult} result
+   */
+  end(result) {
+    if (this.over) return;
+    this.over = true;
+    this.env.finish(result);
+  }
+  /**
+   * Star rating shared by the score-based games: one star for finishing,
+   * two for winning, three for winning well.
+   */
+  starsFor(mine, theirs, wellMargin = 3) {
+    if (mine > theirs + wellMargin) return 3;
+    if (mine > theirs) return 2;
+    if (mine === theirs) return 1;
+    return mine > 0 ? 1 : 0;
+  }
+};
+
+// src/engine/ai.js
+function byTier(table, tier) {
+  return table[Math.max(0, Math.min(table.length - 1, tier))];
+}
+function reactionSeconds(rng, spec) {
+  const floor = spec.floor == null ? 330 : spec.floor;
+  const ms = Math.max(floor, rng.gaussian(spec.mean, spec.sd));
+  return ms / 1e3;
+}
+var Reactor = class {
+  /**
+   * @param {import('./rng.js').Rng} rng
+   * @param {{mean:number, sd:number, floor?:number, missRate:number}} spec
+   */
+  constructor(rng, spec) {
+    this.rng = rng;
+    this.spec = spec;
+    this.armed = false;
+    this.timer = 0;
+    this.willAnswer = false;
+  }
+  /** A cue just appeared. Decide now whether this one gets noticed at all. */
+  arm() {
+    this.armed = true;
+    this.willAnswer = !this.rng.chance(this.spec.missRate);
+    this.timer = reactionSeconds(this.rng, this.spec);
+  }
+  /** The cue went away before the opponent acted. */
+  disarm() {
+    this.armed = false;
+    this.willAnswer = false;
+  }
+  /** @returns {boolean} true on the single frame the opponent acts. */
+  update(dt) {
+    if (!this.armed || !this.willAnswer) return false;
+    this.timer -= dt;
+    if (this.timer <= 0) {
+      this.armed = false;
+      return true;
+    }
+    return false;
+  }
+};
+var Thinker = class {
+  /** @param {import('./rng.js').Rng} rng @param {[number,number]} rangeSec */
+  constructor(rng, rangeSec = [0.5, 1.1]) {
+    this.rng = rng;
+    this.range = rangeSec;
+    this.timer = 0;
+    this.pending = null;
+  }
+  /** @param {() => void} action run once the pause elapses */
+  schedule(action) {
+    this.pending = action;
+    this.timer = this.rng.range(this.range[0], this.range[1]);
+  }
+  update(dt) {
+    if (!this.pending) return;
+    this.timer -= dt;
+    if (this.timer <= 0) {
+      const fn = this.pending;
+      this.pending = null;
+      fn();
+    }
+  }
+  get busy() {
+    return this.pending !== null;
+  }
+  cancel() {
+    this.pending = null;
+  }
+};
+function aimError(rng, spec) {
+  return {
+    angle: rng.gaussian(0, spec.angleDeg / 2) * Math.PI / 180,
+    power: 1 + rng.gaussian(0, spec.powerPct / 200)
+  };
+}
+var LeakyMemory = class {
+  /**
+   * @param {import('./rng.js').Rng} rng
+   * @param {{capacity:number, accuracy:number}} spec capacity Infinity = perfect
+   */
+  constructor(rng, spec) {
+    this.rng = rng;
+    this.spec = spec;
+    this.slots = [];
+  }
+  /** @param {number} key card index @param {string} value what was on it */
+  see(key, value) {
+    const at = this.slots.findIndex((s) => s.key === key);
+    if (at >= 0) this.slots.splice(at, 1);
+    this.slots.push({ key, value });
+    while (this.slots.length > this.spec.capacity) this.slots.shift();
+  }
+  /** Everything currently remembered, subject to recall accuracy. */
+  recall() {
+    const out = {};
+    for (const s of this.slots) {
+      if (this.spec.accuracy < 1 && !this.rng.chance(this.spec.accuracy)) continue;
+      (out[s.value] = out[s.value] || []).push(s.key);
+    }
+    return out;
+  }
+  /** Cards known to be gone, so the AI never flips a matched pair. */
+  forget(key) {
+    const at = this.slots.findIndex((s) => s.key === key);
+    if (at >= 0) this.slots.splice(at, 1);
+  }
+};
+
+// src/engine/draw.js
+var PALETTE = [
+  { id: 0, name: "red", hex: "#e8453c", dark: "#b32e27", shape: "circle" },
+  { id: 1, name: "blue", hex: "#2b7fd4", dark: "#1c5896", shape: "square" },
+  { id: 2, name: "yellow", hex: "#f2c12e", dark: "#bd9110", shape: "triangle" },
+  { id: 3, name: "green", hex: "#34a853", dark: "#22773a", shape: "star" },
+  { id: 4, name: "purple", hex: "#8a4fd1", dark: "#603397", shape: "diamond" },
+  { id: 5, name: "orange", hex: "#f2802e", dark: "#bd5c14", shape: "hex" }
+];
+var PLAYER = [
+  { hex: "#f26a4b", dark: "#c04326", name: "coral" },
+  { hex: "#4aa3c7", dark: "#2b7292", name: "teal" }
+];
+var INK = "#20313a";
+function rr(g, x, y, w, h, r) {
+  const rad = Math.min(r, w / 2, h / 2);
+  g.beginPath();
+  g.moveTo(x + rad, y);
+  g.arcTo(x + w, y, x + w, y + h, rad);
+  g.arcTo(x + w, y + h, x, y + h, rad);
+  g.arcTo(x, y + h, x, y, rad);
+  g.arcTo(x, y, x + w, y, rad);
+  g.closePath();
+}
+function fillRR(g, x, y, w, h, r, fill) {
+  rr(g, x, y, w, h, r);
+  g.fillStyle = fill;
+  g.fill();
+}
+function circle(g, x, y, r) {
+  g.beginPath();
+  g.arc(x, y, r, 0, Math.PI * 2);
+  g.closePath();
+}
+function fillCircle(g, x, y, r, fill) {
+  circle(g, x, y, r);
+  g.fillStyle = fill;
+  g.fill();
+}
+function poly(g, x, y, r, sides, rot = 0) {
+  g.beginPath();
+  for (let i = 0; i < sides; i++) {
+    const a = rot - Math.PI / 2 + i * Math.PI * 2 / sides;
+    const px = x + Math.cos(a) * r;
+    const py = y + Math.sin(a) * r;
+    if (i === 0) g.moveTo(px, py);
+    else g.lineTo(px, py);
+  }
+  g.closePath();
+}
+function star(g, x, y, r, points = 5) {
+  g.beginPath();
+  for (let i = 0; i < points * 2; i++) {
+    const rad = i % 2 === 0 ? r : r * 0.45;
+    const a = -Math.PI / 2 + i * Math.PI / points;
+    const px = x + Math.cos(a) * rad;
+    const py = y + Math.sin(a) * rad;
+    if (i === 0) g.moveTo(px, py);
+    else g.lineTo(px, py);
+  }
+  g.closePath();
+}
+function shapeGlyph(g, shape, x, y, r, fill) {
+  g.fillStyle = fill;
+  switch (shape) {
+    case "circle":
+      circle(g, x, y, r);
+      break;
+    case "square":
+      rr(g, x - r * 0.85, y - r * 0.85, r * 1.7, r * 1.7, r * 0.22);
+      break;
+    case "triangle":
+      poly(g, x, y + r * 0.12, r * 1.1, 3);
+      break;
+    case "star":
+      star(g, x, y, r * 1.12);
+      break;
+    case "diamond":
+      poly(g, x, y, r * 1.15, 4);
+      break;
+    case "hex":
+      poly(g, x, y, r * 1.05, 6, Math.PI / 6);
+      break;
+    default:
+      circle(g, x, y, r);
+  }
+  g.fill();
+}
+function paletteTile(g, colourId, x, y, w, h, opts = {}) {
+  const c = PALETTE[colourId];
+  const r = opts.radius == null ? Math.min(w, h) * 0.22 : opts.radius;
+  fillRR(g, x, y, w, h, r, c.hex);
+  if (opts.rim !== false) {
+    rr(g, x + 1.5, y + 1.5, w - 3, h - 3, Math.max(0, r - 1.5));
+    g.strokeStyle = c.dark;
+    g.lineWidth = 3;
+    g.stroke();
+  }
+  if (opts.glyph !== false) {
+    g.globalAlpha = opts.glyphAlpha == null ? 0.42 : opts.glyphAlpha;
+    shapeGlyph(g, c.shape, x + w / 2, y + h / 2, Math.min(w, h) * 0.26, "#ffffff");
+    g.globalAlpha = 1;
+  }
+}
+function text(g, str, x, y, size, opts = {}) {
+  g.save();
+  g.font = `${opts.weight || 800} ${size}px ${opts.font || "Baloo2, Nunito, system-ui, sans-serif"}`;
+  g.textAlign = opts.align || "center";
+  g.textBaseline = opts.baseline || "middle";
+  if (opts.outline !== false) {
+    g.lineWidth = size * (opts.outlineWidth || 0.18);
+    g.lineJoin = "round";
+    g.strokeStyle = opts.outlineColor || "rgba(255,255,255,0.85)";
+    g.strokeText(str, x, y);
+  }
+  g.fillStyle = opts.fill || INK;
+  g.fillText(str, x, y);
+  g.restore();
+}
+function bigButton(g, x, y, r, colour, pressed = false) {
+  const off = pressed ? 2 : 6;
+  fillCircle(g, x, y + off, r, shade(colour, -0.35));
+  fillCircle(g, x, y, r, colour);
+  circle(g, x, y - r * 0.28, r * 0.72);
+  g.fillStyle = "rgba(255,255,255,0.18)";
+  g.fill();
+}
+function shade(hex, amt) {
+  const n = parseInt(hex.slice(1), 16);
+  const to = amt < 0 ? 0 : 255;
+  const t = Math.abs(amt);
+  const r = Math.round((n >> 16 & 255) * (1 - t) + to * t);
+  const gg = Math.round((n >> 8 & 255) * (1 - t) + to * t);
+  const b = Math.round((n & 255) * (1 - t) + to * t);
+  return `#${(1 << 24 | r << 16 | gg << 8 | b).toString(16).slice(1)}`;
+}
+var easeOut = (t) => 1 - (1 - t) * (1 - t);
+var easeInOut = (t) => t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2;
+function easeBack(t) {
+  const c = 1.70158;
+  return 1 + (c + 1) * (t - 1) ** 3 + c * (t - 1) ** 2;
+}
+
+// src/engine/animals.js
+var ANIMALS = [
+  { id: "fox", body: "#f0873a", face: "#fdf1e4", ear: "pointy", muzzle: "snout", accent: "#4a2f24" },
+  { id: "bear", body: "#a9743f", face: "#e7c9a5", ear: "round", muzzle: "snout", accent: "#3d2a1c" },
+  { id: "panda", body: "#fbfaf7", face: "#fbfaf7", ear: "round-dark", muzzle: "patch", accent: "#2b2b2b" },
+  { id: "frog", body: "#5cb85c", face: "#c9e9a8", ear: "eyes-up", muzzle: "wide", accent: "#22662b" },
+  { id: "owl", body: "#8a6db1", face: "#efe6fb", ear: "tuft", muzzle: "beak", accent: "#f2a63c" },
+  { id: "cat", body: "#9aa7b4", face: "#eef2f6", ear: "pointy", muzzle: "whisker", accent: "#3a4753" },
+  { id: "penguin", body: "#3b4756", face: "#fdfdfb", ear: "none", muzzle: "beak", accent: "#f2a63c" },
+  { id: "rabbit", body: "#f4e4dc", face: "#fffaf7", ear: "tall", muzzle: "snout", accent: "#c98b96" },
+  { id: "pig", body: "#f0a6b4", face: "#ffd9e0", ear: "pointy", muzzle: "trotter", accent: "#b95a72" },
+  { id: "lion", body: "#f2c14e", face: "#fde8bb", ear: "mane", muzzle: "snout", accent: "#8a5a1e" },
+  { id: "monkey", body: "#a8763f", face: "#f0d0a8", ear: "side", muzzle: "wide", accent: "#4a2f1c" },
+  { id: "elephant", body: "#9fb0bd", face: "#cdd8e0", ear: "big", muzzle: "trunk", accent: "#48565f" }
+];
+var ANIMAL_IDS = ANIMALS.map((a) => a.id);
+var BY_ID = {};
+for (const a of ANIMALS) BY_ID[a.id] = a;
+function drawAnimal(g, id, cx, cy, r, opt = {}) {
+  const a = BY_ID[id] || ANIMALS[0];
+  g.save();
+  g.translate(cx, cy);
+  if (opt.tilt) g.rotate(opt.tilt);
+  drawEars(g, a, r);
+  drawHead(g, a, r);
+  drawFace(g, a, r);
+  drawEyes(g, a, r, opt);
+  drawMuzzle(g, a, r, opt);
+  g.restore();
+}
+function drawHead(g, a, r) {
+  fillCircle(g, 0, 0, r, a.body);
+}
+function drawEars(g, a, r) {
+  const dark = shade(a.body, -0.18);
+  switch (a.ear) {
+    case "pointy": {
+      for (const s of [-1, 1]) {
+        g.beginPath();
+        g.moveTo(s * r * 0.42, -r * 0.72);
+        g.lineTo(s * r * 0.95, -r * 1.42);
+        g.lineTo(s * r * 1.02, -r * 0.5);
+        g.closePath();
+        g.fillStyle = a.body;
+        g.fill();
+        g.beginPath();
+        g.moveTo(s * r * 0.55, -r * 0.78);
+        g.lineTo(s * r * 0.86, -r * 1.2);
+        g.lineTo(s * r * 0.88, -r * 0.62);
+        g.closePath();
+        g.fillStyle = a.accent;
+        g.globalAlpha = 0.45;
+        g.fill();
+        g.globalAlpha = 1;
+      }
+      break;
+    }
+    case "round":
+      for (const s of [-1, 1]) fillCircle(g, s * r * 0.78, -r * 0.78, r * 0.36, dark);
+      break;
+    case "round-dark":
+      for (const s of [-1, 1]) fillCircle(g, s * r * 0.8, -r * 0.76, r * 0.38, a.accent);
+      break;
+    case "tall":
+      for (const s of [-1, 1]) {
+        g.save();
+        g.translate(s * r * 0.42, -r * 1.05);
+        g.rotate(s * 0.18);
+        g.beginPath();
+        g.ellipse(0, 0, r * 0.26, r * 0.72, 0, 0, Math.PI * 2);
+        g.fillStyle = a.body;
+        g.fill();
+        g.beginPath();
+        g.ellipse(0, r * 0.05, r * 0.13, r * 0.5, 0, 0, Math.PI * 2);
+        g.fillStyle = a.accent;
+        g.globalAlpha = 0.5;
+        g.fill();
+        g.globalAlpha = 1;
+        g.restore();
+      }
+      break;
+    case "big":
+      for (const s of [-1, 1]) {
+        g.beginPath();
+        g.ellipse(s * r * 0.92, -r * 0.12, r * 0.56, r * 0.72, s * 0.25, 0, Math.PI * 2);
+        g.fillStyle = dark;
+        g.fill();
+      }
+      break;
+    case "side":
+      for (const s of [-1, 1]) {
+        fillCircle(g, s * r * 0.98, -r * 0.05, r * 0.32, dark);
+        fillCircle(g, s * r * 0.98, -r * 0.05, r * 0.18, a.face);
+      }
+      break;
+    case "tuft":
+      for (const s of [-1, 1]) {
+        g.beginPath();
+        g.moveTo(s * r * 0.3, -r * 0.85);
+        g.lineTo(s * r * 0.72, -r * 1.32);
+        g.lineTo(s * r * 0.8, -r * 0.72);
+        g.closePath();
+        g.fillStyle = shade(a.body, -0.12);
+        g.fill();
+      }
+      break;
+    case "mane": {
+      const petals = 11;
+      for (let i = 0; i < petals; i++) {
+        const ang = i / petals * Math.PI * 2;
+        fillCircle(g, Math.cos(ang) * r * 0.98, Math.sin(ang) * r * 0.98, r * 0.36, "#d9922e");
+      }
+      break;
+    }
+    case "eyes-up":
+      for (const s of [-1, 1]) fillCircle(g, s * r * 0.55, -r * 0.82, r * 0.36, a.body);
+      break;
+    default:
+      break;
+  }
+}
+function drawFace(g, a, r) {
+  switch (a.id) {
+    case "fox":
+      g.beginPath();
+      g.moveTo(-r * 0.62, r * 0.02);
+      g.quadraticCurveTo(0, -r * 0.35, r * 0.62, r * 0.02);
+      g.quadraticCurveTo(r * 0.4, r * 0.92, 0, r * 0.95);
+      g.quadraticCurveTo(-r * 0.4, r * 0.92, -r * 0.62, r * 0.02);
+      g.closePath();
+      g.fillStyle = a.face;
+      g.fill();
+      break;
+    case "penguin":
+      g.beginPath();
+      g.ellipse(0, r * 0.16, r * 0.66, r * 0.74, 0, 0, Math.PI * 2);
+      g.fillStyle = a.face;
+      g.fill();
+      break;
+    case "panda":
+      for (const s of [-1, 1]) {
+        g.save();
+        g.translate(s * r * 0.36, -r * 0.1);
+        g.rotate(s * 0.35);
+        g.beginPath();
+        g.ellipse(0, 0, r * 0.3, r * 0.38, 0, 0, Math.PI * 2);
+        g.fillStyle = a.accent;
+        g.fill();
+        g.restore();
+      }
+      break;
+    case "monkey":
+      g.beginPath();
+      g.ellipse(0, r * 0.16, r * 0.62, r * 0.66, 0, 0, Math.PI * 2);
+      g.fillStyle = a.face;
+      g.fill();
+      break;
+    case "owl":
+      for (const s of [-1, 1]) fillCircle(g, s * r * 0.38, -r * 0.12, r * 0.42, a.face);
+      break;
+    case "lion":
+    case "bear":
+    case "rabbit":
+    case "elephant":
+      g.beginPath();
+      g.ellipse(0, r * 0.3, r * 0.56, r * 0.46, 0, 0, Math.PI * 2);
+      g.fillStyle = a.face;
+      g.fill();
+      break;
+    case "cat":
+      g.beginPath();
+      g.ellipse(0, r * 0.34, r * 0.5, r * 0.38, 0, 0, Math.PI * 2);
+      g.fillStyle = a.face;
+      g.fill();
+      break;
+    case "frog":
+      g.beginPath();
+      g.ellipse(0, r * 0.35, r * 0.66, r * 0.42, 0, 0, Math.PI * 2);
+      g.fillStyle = a.face;
+      g.fill();
+      break;
+    default:
+      break;
+  }
+}
+function drawEyes(g, a, r, opt) {
+  const eyeY = a.ear === "eyes-up" ? -r * 0.82 : -r * 0.12;
+  const dx = a.ear === "eyes-up" ? r * 0.55 : r * 0.36;
+  const eyeR = a.id === "owl" ? r * 0.2 : r * 0.15;
+  for (const s of [-1, 1]) {
+    const ex = s * dx;
+    if (a.ear === "eyes-up") fillCircle(g, ex, eyeY, r * 0.22, "#ffffff");
+    if (opt.blink) {
+      g.beginPath();
+      g.moveTo(ex - eyeR, eyeY);
+      g.lineTo(ex + eyeR, eyeY);
+      g.strokeStyle = "#2b2b2b";
+      g.lineWidth = Math.max(2, r * 0.09);
+      g.lineCap = "round";
+      g.stroke();
+    } else {
+      fillCircle(g, ex, eyeY, eyeR, "#2b2b2b");
+      fillCircle(g, ex + eyeR * 0.34, eyeY - eyeR * 0.34, eyeR * 0.36, "#ffffff");
+    }
+  }
+}
+function drawMuzzle(g, a, r, opt) {
+  const noseY = r * 0.22;
+  switch (a.muzzle) {
+    case "beak":
+      g.beginPath();
+      g.moveTo(-r * 0.2, noseY - r * 0.04);
+      g.lineTo(r * 0.2, noseY - r * 0.04);
+      g.lineTo(0, noseY + r * 0.36);
+      g.closePath();
+      g.fillStyle = a.accent;
+      g.fill();
+      break;
+    case "trotter":
+      g.beginPath();
+      g.ellipse(0, noseY + r * 0.12, r * 0.3, r * 0.23, 0, 0, Math.PI * 2);
+      g.fillStyle = a.accent;
+      g.fill();
+      for (const s of [-1, 1]) fillCircle(g, s * r * 0.11, noseY + r * 0.12, r * 0.055, "#7d3a4e");
+      break;
+    case "trunk":
+      g.beginPath();
+      g.moveTo(-r * 0.17, noseY - r * 0.1);
+      g.quadraticCurveTo(-r * 0.2, r * 1.15, r * 0.14, r * 1.12);
+      g.quadraticCurveTo(r * 0.02, r * 0.9, r * 0.17, noseY - r * 0.1);
+      g.closePath();
+      g.fillStyle = shade(a.body, -0.1);
+      g.fill();
+      break;
+    case "wide":
+      g.beginPath();
+      g.arc(0, r * 0.18, r * 0.44, 0.15 * Math.PI, 0.85 * Math.PI);
+      g.strokeStyle = a.accent;
+      g.lineWidth = Math.max(2, r * 0.1);
+      g.lineCap = "round";
+      g.stroke();
+      break;
+    case "whisker":
+      fillCircle(g, 0, noseY, r * 0.11, a.accent);
+      for (const s of [-1, 1]) {
+        for (let i = -1; i <= 1; i++) {
+          g.beginPath();
+          g.moveTo(s * r * 0.16, noseY + i * r * 0.05);
+          g.lineTo(s * r * 0.78, noseY + i * r * 0.19);
+          g.strokeStyle = "rgba(58,71,83,0.55)";
+          g.lineWidth = Math.max(1, r * 0.035);
+          g.lineCap = "round";
+          g.stroke();
+        }
+      }
+      break;
+    case "patch":
+      fillCircle(g, 0, noseY, r * 0.13, a.accent);
+      break;
+    case "snout":
+    default:
+      fillCircle(g, 0, noseY, r * 0.13, a.accent);
+      g.beginPath();
+      if (opt.sad) {
+        g.arc(0, r * 0.62, r * 0.24, 1.15 * Math.PI, 1.85 * Math.PI);
+      } else {
+        g.arc(0, r * 0.4, r * 0.26, 0.15 * Math.PI, 0.85 * Math.PI);
+      }
+      g.strokeStyle = a.accent;
+      g.lineWidth = Math.max(2, r * 0.075);
+      g.lineCap = "round";
+      g.stroke();
+      break;
+  }
+}
+function animalCard(g, id, x, y, w, h, opt = {}) {
+  const r = Math.min(w, h) * 0.16;
+  rr(g, x, y, w, h, r);
+  g.fillStyle = opt.bg || "#ffffff";
+  g.fill();
+  if (opt.rim !== false) {
+    rr(g, x + 2, y + 2, w - 4, h - 4, Math.max(0, r - 2));
+    g.strokeStyle = opt.rimColor || "rgba(32,49,58,0.16)";
+    g.lineWidth = 3;
+    g.stroke();
+  }
+  drawAnimal(g, id, x + w / 2, y + h / 2, Math.min(w, h) * 0.3, opt);
+}
+function cardBack(g, x, y, w, h, colour = "#4aa3c7") {
+  const r = Math.min(w, h) * 0.16;
+  rr(g, x, y, w, h, r);
+  g.fillStyle = colour;
+  g.fill();
+  g.save();
+  rr(g, x, y, w, h, r);
+  g.clip();
+  g.globalAlpha = 0.22;
+  const step = Math.min(w, h) * 0.34;
+  for (let i = -h; i < w + h; i += step) {
+    g.beginPath();
+    g.moveTo(x + i, y);
+    g.lineTo(x + i + h, y + h);
+    g.strokeStyle = "#ffffff";
+    g.lineWidth = step * 0.3;
+    g.stroke();
+  }
+  g.restore();
+  fillCircle(g, x + w / 2, y + h / 2, Math.min(w, h) * 0.17, "rgba(255,255,255,0.9)");
+  poly(g, x + w / 2, y + h / 2, Math.min(w, h) * 0.09, 5);
+  g.fillStyle = colour;
+  g.fill();
+}
+
+// src/engine/layout.js
+function duelZones(w, h) {
+  const half = h / 2;
+  return [
+    { x: 0, y: half, w, h: half, flip: false, index: 0 },
+    { x: 0, y: 0, w, h: half, flip: true, index: 1 }
+  ];
+}
+function inZone(g, zone, fn) {
+  g.save();
+  if (zone.flip) {
+    g.translate(zone.x + zone.w, zone.y + zone.h);
+    g.rotate(Math.PI);
+  } else {
+    g.translate(zone.x, zone.y);
+  }
+  g.beginPath();
+  g.rect(0, 0, zone.w, zone.h);
+  g.clip();
+  fn(g);
+  g.restore();
+}
+function toLocal(zone, px, py) {
+  if (px < zone.x || px > zone.x + zone.w || py < zone.y || py > zone.y + zone.h) return null;
+  if (zone.flip) {
+    return { x: zone.x + zone.w - px, y: zone.y + zone.h - py };
+  }
+  return { x: px - zone.x, y: py - zone.y };
+}
+function zoneAt(zones, px, py) {
+  for (const z of zones) {
+    if (px >= z.x && px <= z.x + z.w && py >= z.y && py <= z.y + z.h) return z;
+  }
+  return null;
+}
+function drawDivider(g, w, h) {
+  g.save();
+  g.setLineDash([12, 10]);
+  g.strokeStyle = "rgba(32,49,58,0.22)";
+  g.lineWidth = 3;
+  g.beginPath();
+  g.moveTo(0, h / 2);
+  g.lineTo(w, h / 2);
+  g.stroke();
+  g.restore();
+}
+function drawAiChip(g, w) {
+  const bw = 46;
+  const bh = 26;
+  const x = w - bw - 14;
+  const y = 12;
+  g.save();
+  g.beginPath();
+  g.moveTo(x + 13, y);
+  g.arcTo(x + bw, y, x + bw, y + bh, 13);
+  g.arcTo(x + bw, y + bh, x, y + bh, 13);
+  g.arcTo(x, y + bh, x, y, 13);
+  g.arcTo(x, y, x + bw, y, 13);
+  g.closePath();
+  g.fillStyle = "rgba(32,49,58,0.72)";
+  g.fill();
+  g.font = "800 15px system-ui, sans-serif";
+  g.textAlign = "center";
+  g.textBaseline = "middle";
+  g.fillStyle = "#ffffff";
+  g.fillText("AI", x + bw / 2, y + bh / 2 + 1);
+  g.restore();
+}
+
+// src/games/snap-safari.js
+var AI = [
+  { mean: 1100, sd: 250, missRate: 0.25 },
+  { mean: 650, sd: 150, missRate: 0.08 },
+  { mean: 380, sd: 80, missRate: 0.02 }
+];
+var TARGET_SCORE = 7;
+var LOCKOUT = 0.9;
+var SnapSafari = class extends MiniGame {
+  static meta = {
+    id: "snap-safari",
+    title: "Snap Safari",
+    category: "Reaction",
+    verb: "tap",
+    layout: "duel",
+    seconds: 75,
+    tint: "#f26a4b",
+    mascot: "fox"
+  };
+  static icon(g, s) {
+    g.save();
+    g.translate(s * 0.5, s * 0.5);
+    g.rotate(-0.12);
+    animalCard(g, "fox", -s * 0.42, -s * 0.34, s * 0.42, s * 0.54, { bg: "#fff" });
+    g.rotate(0.24);
+    animalCard(g, "fox", s * 0.02, -s * 0.34, s * 0.42, s * 0.54, { bg: "#fff" });
+    g.restore();
+    fillCircle(g, s * 0.5, s * 0.84, s * 0.13, "#f26a4b");
+  }
+  constructor(env) {
+    super(env);
+    this.deck = ANIMAL_IDS.slice(0, 8);
+    this.slots = [env.rng.pick(this.deck), env.rng.pick(this.deck)];
+    this.nextSlot = 0;
+    this.scores = [0, 0];
+    this.lock = [0, 0];
+    this.flash = [0, 0];
+    this.beat = 0;
+    this.beatLength = 1.35;
+    this.dealT = 1;
+    this.matchActive = false;
+    this.matchAge = 0;
+    this.reactor = env.mode === "1p" ? new Reactor(env.rng, byTier(AI, env.difficulty)) : null;
+    this.zones = duelZones(this.w, this.h);
+    this.pawTouched = [false, false];
+  }
+  resize(w, h) {
+    super.resize(w, h);
+    this.zones = duelZones(w, h);
+  }
+  /* ---------------------------------------------------------------- */
+  update(dt) {
+    if (this.over) return;
+    this.timeLeft -= dt;
+    if (this.timeLeft <= 0) return this.finish();
+    for (let i = 0; i < 2; i++) {
+      if (this.lock[i] > 0) this.lock[i] -= dt;
+      if (this.flash[i] > 0) this.flash[i] -= dt;
+    }
+    if (this.dealT < 1) this.dealT = Math.min(1, this.dealT + dt * 5);
+    const progress = 1 - this.timeLeft / this.constructor.meta.seconds;
+    this.beatLength = 1.4 - progress * 0.55;
+    this.beat += dt;
+    if (this.beat >= this.beatLength) {
+      this.beat = 0;
+      this.deal();
+    }
+    if (this.matchActive) this.matchAge += dt;
+    if (this.reactor && this.reactor.update(dt)) this.snap(1);
+  }
+  deal() {
+    const rng = this.env.rng;
+    const forceMatch = rng.chance(0.26);
+    const other = this.slots[1 - this.nextSlot];
+    this.slots[this.nextSlot] = forceMatch ? other : rng.pick(this.deck);
+    this.nextSlot = 1 - this.nextSlot;
+    this.dealT = 0;
+    this.env.sfx.tick();
+    this.evaluate();
+  }
+  evaluate() {
+    const isMatch = this.slots[0] === this.slots[1];
+    if (isMatch && !this.matchActive) {
+      this.matchActive = true;
+      this.matchAge = 0;
+      if (this.reactor) this.reactor.arm();
+    } else if (!isMatch && this.matchActive) {
+      this.matchActive = false;
+      if (this.reactor) this.reactor.disarm();
+    }
+  }
+  /** @param {0|1} player */
+  snap(player) {
+    if (this.over || this.lock[player] > 0) return;
+    if (this.matchActive) {
+      this.scores[player] += 1;
+      this.flash[player] = 0.45;
+      this.env.sfx.good();
+      this.matchActive = false;
+      if (this.reactor) this.reactor.disarm();
+      this.slots = [this.env.rng.pick(this.deck), this.env.rng.pick(this.deck)];
+      this.dealT = 0;
+      this.beat = 0;
+      this.evaluate();
+      if (this.scores[player] >= TARGET_SCORE) this.finish();
+    } else {
+      this.scores[player] = Math.max(0, this.scores[player] - 1);
+      this.lock[player] = LOCKOUT;
+      this.env.sfx.bad();
+    }
+  }
+  finish() {
+    const [a, b] = this.scores;
+    this.end({
+      scores: this.scores,
+      winner: a === b ? null : a > b ? 0 : 1,
+      stars: this.starsFor(a, b, 3)
+    });
+  }
+  /* ---------------------------------------------------------------- */
+  pointer(p) {
+    if (p.type !== "down" || this.over) return;
+    const zone = zoneAt(this.zones, p.x, p.y);
+    if (!zone) return;
+    if (zone.index === 1 && this.env.mode === "1p") return;
+    const local = toLocal(zone, p.x, p.y);
+    if (!local) return;
+    const paw = this.pawRect(zone);
+    const dx = local.x - paw.cx;
+    const dy = local.y - paw.cy;
+    if (dx * dx + dy * dy <= paw.r * paw.r * 1.3) this.snap(zone.index);
+  }
+  pawRect(zone) {
+    const r = Math.min(zone.h * 0.34, zone.w * 0.16, 92);
+    return { cx: zone.w / 2, cy: zone.h - r - Math.min(24, zone.h * 0.08), r };
+  }
+  /* ---------------------------------------------------------------- */
+  render(g) {
+    g.fillStyle = "#eaf3f0";
+    g.fillRect(0, 0, this.w, this.h);
+    for (const zone of this.zones) {
+      inZone(g, zone, (gg) => this.renderHalf(gg, zone));
+    }
+    drawDivider(g, this.w, this.h);
+    this.renderCards(g);
+    if (this.env.mode === "1p") drawAiChip(g, this.w);
+  }
+  renderHalf(g, zone) {
+    const paw = this.pawRect(zone);
+    const i = zone.index;
+    const colour = PLAYER[i].hex;
+    const pipR = Math.min(11, zone.w * 0.014);
+    const startX = zone.w / 2 - (TARGET_SCORE - 1) * pipR * 1.6;
+    for (let s = 0; s < TARGET_SCORE; s++) {
+      const on = s < this.scores[i];
+      fillCircle(
+        g,
+        startX + s * pipR * 3.2,
+        paw.cy - paw.r - pipR * 3.4,
+        pipR,
+        on ? colour : "rgba(32,49,58,0.13)"
+      );
+    }
+    const locked = this.lock[i] > 0;
+    const flashing = this.flash[i] > 0;
+    let btnColour = colour;
+    if (locked) btnColour = "#9fb0bd";
+    else if (flashing) btnColour = "#5cb85c";
+    const bump = flashing ? easeBack(Math.min(1, (0.45 - this.flash[i]) / 0.25)) * 4 : 0;
+    bigButton(g, paw.cx, paw.cy - bump, paw.r, btnColour, locked);
+    drawAnimal(
+      g,
+      i === 0 ? "fox" : "panda",
+      paw.cx,
+      paw.cy - bump,
+      paw.r * 0.56,
+      { sad: locked }
+    );
+    if (locked) {
+      g.beginPath();
+      g.arc(
+        paw.cx,
+        paw.cy,
+        paw.r + 10,
+        -Math.PI / 2,
+        -Math.PI / 2 + this.lock[i] / LOCKOUT * Math.PI * 2
+      );
+      g.strokeStyle = "rgba(242,106,75,0.75)";
+      g.lineWidth = 7;
+      g.lineCap = "round";
+      g.stroke();
+    }
+  }
+  /** The two shared cards, drawn once across the divider. */
+  renderCards(g) {
+    const cardH = Math.min(this.h * 0.19, this.w * 0.24, 170);
+    const cardW = cardH * 0.78;
+    const gap = cardW * 0.24;
+    const cy = this.h / 2;
+    const x0 = this.w / 2 - cardW - gap / 2;
+    for (let i = 0; i < 2; i++) {
+      const landing = this.nextSlot !== i;
+      const t = landing ? easeBack(this.dealT) : 1;
+      const x = x0 + i * (cardW + gap);
+      g.save();
+      g.translate(x + cardW / 2, cy);
+      g.scale(t, t);
+      animalCard(g, this.slots[i], -cardW / 2, -cardH / 2, cardW, cardH, {
+        bg: "#ffffff",
+        rimColor: this.matchActive ? "#5cb85c" : "rgba(32,49,58,0.16)"
+      });
+      g.restore();
+    }
+    if (this.matchActive) {
+      const pulse = 1 + Math.sin(this.matchAge * 12) * 0.05;
+      g.save();
+      g.translate(this.w / 2, cy);
+      g.scale(pulse, pulse);
+      rr(
+        g,
+        -cardW - gap / 2 - 10,
+        -cardH / 2 - 10,
+        cardW * 2 + gap + 20,
+        cardH + 20,
+        22
+      );
+      g.strokeStyle = "#5cb85c";
+      g.lineWidth = 6;
+      g.stroke();
+      g.restore();
+    }
+  }
+};
+
+// src/games/colour-splash.js
+var N = 11;
+var COLOURS = 6;
+var DEPTH = [1, 1, 3];
+var ColourSplash = class extends MiniGame {
+  static meta = {
+    id: "colour-splash",
+    title: "Colour Splash",
+    category: "Strategy",
+    verb: "tap",
+    layout: "shared",
+    seconds: 90,
+    tint: "#8a6db1",
+    mascot: "frog"
+  };
+  static icon(g, s) {
+    const cell = s / 5;
+    const map = [
+      [0, 0, 3, 3, 1],
+      [0, 3, 3, 1, 1],
+      [3, 3, 4, 1, 2],
+      [3, 4, 4, 2, 2],
+      [4, 4, 2, 2, 5]
+    ];
+    for (let r = 0; r < 5; r++) {
+      for (let c = 0; c < 5; c++) {
+        paletteTile(
+          g,
+          map[r][c],
+          c * cell + 2,
+          r * cell + 2,
+          cell - 4,
+          cell - 4,
+          { radius: cell * 0.2, glyphAlpha: 0.3 }
+        );
+      }
+    }
+  }
+  constructor(env) {
+    super(env);
+    this.timeLeft = -1;
+    this.state = newBoard(env.rng);
+    this.turn = 0;
+    this.anim = 0;
+    this.splash = /* @__PURE__ */ new Set();
+    this.thinker = new Thinker(env.rng, [0.6, 1.2]);
+    this.aiDepth = byTier(DEPTH, env.difficulty);
+    this.aiTier = env.difficulty;
+  }
+  get isAiTurn() {
+    return this.env.mode === "1p" && this.turn === 1;
+  }
+  /* ------------------------------- loop ------------------------------- */
+  update(dt) {
+    if (this.over) return;
+    if (this.anim > 0) this.anim = Math.max(0, this.anim - dt * 2.6);
+    if (this.isAiTurn && !this.thinker.busy && this.anim === 0) {
+      this.thinker.schedule(() => {
+        const c = chooseColour(this.state, 1, this.aiTier, this.aiDepth, this.env.rng);
+        if (c >= 0) this.play(c);
+      });
+    }
+    this.thinker.update(dt);
+  }
+  play(colour) {
+    if (this.over || this.anim > 0) return;
+    if (!legalColours(this.state, this.turn).includes(colour)) return;
+    const before = new Set(ownedCells(this.state, this.turn));
+    applyMove(this.state, this.turn, colour);
+    this.splash = new Set(ownedCells(this.state, this.turn).filter((i) => !before.has(i)));
+    this.anim = 1;
+    this.env.sfx[this.splash.size > 0 ? "pop" : "tap"]();
+    const counts = tileCounts(this.state);
+    const half = N * N / 2;
+    if (counts[0] > half || counts[1] > half || counts[0] + counts[1] === N * N) {
+      return this.finish(counts);
+    }
+    this.turn = 1 - this.turn;
+  }
+  finish(counts) {
+    this.end({
+      scores: counts,
+      winner: counts[0] === counts[1] ? null : counts[0] > counts[1] ? 0 : 1,
+      stars: this.starsFor(counts[0], counts[1], 18)
+    });
+  }
+  /* ------------------------------ input ------------------------------- */
+  pointer(p) {
+    if (p.type !== "down" || this.over || this.isAiTurn || this.anim > 0) return;
+    const L = this.layout();
+    for (const bar of L.bars) {
+      if (bar.player !== this.turn) continue;
+      const px = bar.flip ? this.w - p.x : p.x;
+      const py = bar.flip ? 2 * (bar.y + bar.h / 2) - p.y : p.y;
+      for (let c = 0; c < COLOURS; c++) {
+        const b = bar.buttons[c];
+        if (px >= b.x && px <= b.x + b.w && py >= b.y && py <= b.y + b.h) {
+          if (legalColours(this.state, this.turn).includes(c)) this.play(c);
+          else this.env.sfx.bad();
+          return;
+        }
+      }
+    }
+  }
+  /* ------------------------------ layout ------------------------------ */
+  layout() {
+    const twoBars = this.env.mode === "2p";
+    const barH = Math.min(96, this.h * 0.13);
+    const topPad = twoBars ? barH : Math.min(56, this.h * 0.08);
+    const boardMax = Math.min(this.w - 24, this.h - topPad - barH - 24);
+    const cell = Math.floor(boardMax / N);
+    const size = cell * N;
+    const bx = (this.w - size) / 2;
+    const by = topPad + (this.h - topPad - barH - size) / 2;
+    const bars = [makeBar(this.w, this.h - barH, barH, 0, false)];
+    if (twoBars) bars.push(makeBar(this.w, 0, barH, 1, true));
+    return { cell, size, bx, by, barH, bars };
+  }
+  /* ------------------------------ render ------------------------------ */
+  render(g) {
+    g.fillStyle = "#f7f3ea";
+    g.fillRect(0, 0, this.w, this.h);
+    const L = this.layout();
+    const { cell, bx, by } = L;
+    const eased = 1 - this.anim;
+    for (let r = 0; r < N; r++) {
+      for (let c = 0; c < N; c++) {
+        const i = r * N + c;
+        const x = bx + c * cell;
+        const y = by + r * cell;
+        const growing = this.splash.has(i);
+        const s = growing ? 0.55 + 0.45 * eased : 1;
+        const pad = cell * (1 - s) / 2 + 1;
+        paletteTile(g, this.state.col[i], x + pad, y + pad, cell - pad * 2, cell - pad * 2, {
+          radius: cell * 0.18,
+          glyphAlpha: this.state.own[i] < 0 ? 0.34 : 0.5
+        });
+        if (this.state.own[i] >= 0) {
+          rr(g, x + 1.5, y + 1.5, cell - 3, cell - 3, cell * 0.18);
+          g.strokeStyle = PLAYER[this.state.own[i]].dark;
+          g.globalAlpha = 0.85;
+          g.lineWidth = 2.5;
+          g.stroke();
+          g.globalAlpha = 1;
+        }
+      }
+    }
+    for (const player of [0, 1]) {
+      const idx = cornerOf(player);
+      const cx = bx + idx % N * cell + cell / 2;
+      const cy = by + Math.floor(idx / N) * cell + cell / 2;
+      drawAnimal(g, player === 0 ? "frog" : "owl", cx, cy, cell * 0.36);
+    }
+    const counts = tileCounts(this.state);
+    this.renderProgress(g, L, counts);
+    for (const bar of L.bars) this.renderBar(g, bar, counts);
+  }
+  /** A single bar showing who owns how much of the board. */
+  renderProgress(g, L, counts) {
+    const total = N * N;
+    const w = L.size;
+    const x = L.bx;
+    const y = L.by - 16;
+    const h = 10;
+    fillRR(g, x, y, w, h, h / 2, "rgba(32,49,58,0.1)");
+    const f0 = counts[0] / total * w;
+    const f1 = counts[1] / total * w;
+    fillRR(g, x, y, f0, h, h / 2, PLAYER[0].hex);
+    fillRR(g, x + w - f1, y, f1, h, h / 2, PLAYER[1].hex);
+    g.beginPath();
+    g.moveTo(x + w / 2, y - 4);
+    g.lineTo(x + w / 2, y + h + 4);
+    g.strokeStyle = "rgba(32,49,58,0.4)";
+    g.lineWidth = 2;
+    g.stroke();
+  }
+  renderBar(g, bar, counts) {
+    g.save();
+    if (bar.flip) {
+      const cx = this.w / 2;
+      const cy = bar.y + bar.h / 2;
+      g.translate(cx, cy);
+      g.rotate(Math.PI);
+      g.translate(-cx, -cy);
+    }
+    const active = bar.player === this.turn && !this.over;
+    const legal = legalColours(this.state, bar.player);
+    if (active) {
+      fillRR(
+        g,
+        8,
+        bar.y + 4,
+        this.w - 16,
+        bar.h - 8,
+        20,
+        bar.player === 0 ? "rgba(242,106,75,0.14)" : "rgba(74,163,199,0.14)"
+      );
+    }
+    for (let c = 0; c < COLOURS; c++) {
+      const b = bar.buttons[c];
+      const ok = legal.includes(c);
+      g.globalAlpha = ok ? 1 : 0.26;
+      const lift = active && ok ? 3 : 0;
+      fillRR(g, b.x, b.y - lift + 4, b.w, b.h, b.w * 0.28, PALETTE[c].dark);
+      fillRR(g, b.x, b.y - lift, b.w, b.h, b.w * 0.28, PALETTE[c].hex);
+      shapeGlyph(g, PALETTE[c].shape, b.x + b.w / 2, b.y + b.h / 2 - lift, b.w * 0.26, "#ffffff");
+      g.globalAlpha = 1;
+    }
+    const badge = bar.h * 0.34;
+    drawAnimal(
+      g,
+      bar.player === 0 ? "frog" : "owl",
+      badge + 8,
+      bar.y + bar.h / 2,
+      badge,
+      { blink: !active }
+    );
+    text(
+      g,
+      String(counts[bar.player]),
+      badge * 2.4 + 8,
+      bar.y + bar.h / 2,
+      bar.h * 0.34,
+      { fill: PLAYER[bar.player].dark, align: "left" }
+    );
+    if (active) {
+      g.beginPath();
+      const ax = this.w - 30;
+      const ay = bar.y + bar.h / 2;
+      const t = Math.sin(Date.now() / 220) * 4;
+      g.moveTo(ax - 14, ay - 12 + t);
+      g.lineTo(ax + 4, ay + t);
+      g.lineTo(ax - 14, ay + 12 + t);
+      g.closePath();
+      g.fillStyle = PLAYER[bar.player].hex;
+      g.fill();
+    }
+    g.restore();
+  }
+};
+function cornerOf(player) {
+  return player === 0 ? (N - 1) * N : N - 1;
+}
+function newBoard(rng) {
+  const col = new Uint8Array(N * N);
+  for (let i = 0; i < col.length; i++) col[i] = rng.int(0, COLOURS - 1);
+  const own = new Int8Array(N * N).fill(-1);
+  const c0 = cornerOf(0);
+  const c1 = cornerOf(1);
+  while (col[c0] === col[c1]) col[c1] = rng.int(0, COLOURS - 1);
+  own[c0] = 0;
+  own[c1] = 1;
+  return { col, own };
+}
+function clone(s) {
+  return { col: s.col.slice(), own: s.own.slice() };
+}
+function ownedCells(s, player) {
+  const out = [];
+  for (let i = 0; i < s.own.length; i++) if (s.own[i] === player) out.push(i);
+  return out;
+}
+function tileCounts(s) {
+  let a = 0;
+  let b = 0;
+  for (let i = 0; i < s.own.length; i++) {
+    if (s.own[i] === 0) a++;
+    else if (s.own[i] === 1) b++;
+  }
+  return [a, b];
+}
+function currentColour(s, player) {
+  return s.col[cornerOf(player)];
+}
+function legalColours(s, player) {
+  const mine = currentColour(s, player);
+  const theirs = currentColour(s, 1 - player);
+  const out = [];
+  for (let c = 0; c < COLOURS; c++) if (c !== mine && c !== theirs) out.push(c);
+  return out;
+}
+function applyMove(s, player, colour) {
+  const stack = [];
+  for (let i = 0; i < s.own.length; i++) {
+    if (s.own[i] === player) {
+      s.col[i] = colour;
+      stack.push(i);
+    }
+  }
+  while (stack.length) {
+    const i = stack.pop();
+    const r = Math.floor(i / N);
+    const c = i % N;
+    if (c > 0) grab(s, i - 1, player, colour, stack);
+    if (c < N - 1) grab(s, i + 1, player, colour, stack);
+    if (r > 0) grab(s, i - N, player, colour, stack);
+    if (r < N - 1) grab(s, i + N, player, colour, stack);
+  }
+}
+function grab(s, j, player, colour, stack) {
+  if (s.own[j] === -1 && s.col[j] === colour) {
+    s.own[j] = player;
+    stack.push(j);
+  }
+}
+function chooseColour(s, player, tier, depth, rng) {
+  const legal = legalColours(s, player);
+  if (!legal.length) return -1;
+  if (tier === 0) {
+    const gaining = legal.filter((c) => gainOf(s, player, c) > 0);
+    return rng.pick(gaining.length ? gaining : legal);
+  }
+  if (tier === 1) {
+    let best2 = legal[0];
+    let bestGain = -1;
+    for (const c of legal) {
+      const gain = gainOf(s, player, c);
+      if (gain > bestGain) {
+        bestGain = gain;
+        best2 = c;
+      }
+    }
+    return best2;
+  }
+  let best = legal[0];
+  let bestScore = -Infinity;
+  for (const c of legal) {
+    const next = clone(s);
+    applyMove(next, player, c);
+    const score = -negamax(next, 1 - player, depth - 1);
+    if (score > bestScore) {
+      bestScore = score;
+      best = c;
+    }
+  }
+  return best;
+}
+function gainOf(s, player, colour) {
+  const before = tileCounts(s)[player];
+  const next = clone(s);
+  applyMove(next, player, colour);
+  return tileCounts(next)[player] - before;
+}
+function negamax(s, player, depth) {
+  const counts = tileCounts(s);
+  if (depth <= 0 || counts[0] + counts[1] === N * N) {
+    return counts[player] - counts[1 - player];
+  }
+  let best = -Infinity;
+  for (const c of legalColours(s, player)) {
+    const next = clone(s);
+    applyMove(next, player, c);
+    best = Math.max(best, -negamax(next, 1 - player, depth - 1));
+  }
+  return best === -Infinity ? counts[player] - counts[1 - player] : best;
+}
+function makeBar(w, y, h, player, flip) {
+  const pad = 10;
+  const arrowLane = flip ? 86 : 42;
+  const usable = w - pad * 2 - arrowLane - h * 1.6;
+  const bw = Math.min(76, (usable - 5 * pad) / COLOURS);
+  const bh = Math.min(bw, h - 16);
+  const startX = w - pad - arrowLane - COLOURS * bw - (COLOURS - 1) * pad * 0.6;
+  const buttons = [];
+  for (let c = 0; c < COLOURS; c++) {
+    buttons.push({
+      x: startX + c * (bw + pad * 0.6),
+      y: y + (h - bh) / 2,
+      w: bw,
+      h: bh
+    });
+  }
+  return { y, h, player, flip, buttons };
+}
+
+// src/games/penguin-slide.js
+var AI2 = [
+  { angleDeg: 18, powerPct: 25, plan: "centre" },
+  { angleDeg: 7, powerPct: 10, plan: "takeout" },
+  { angleDeg: 2.5, powerPct: 4, plan: "simulate" }
+];
+var SLIDES_PER_END = 4;
+var ENDS = 3;
+var DAMPING = 0.35;
+var STOP = 7;
+var WALL_BOUNCE = 0.55;
+var STEP = 1 / 120;
+var PenguinSlide = class extends MiniGame {
+  static meta = {
+    id: "penguin-slide",
+    title: "Penguin Slide",
+    category: "Aim & physics",
+    verb: "pull back",
+    layout: "shared",
+    seconds: 90,
+    tint: "#4aa3c7",
+    mascot: "penguin"
+  };
+  static icon(g, s) {
+    g.fillStyle = "#eaf6fb";
+    g.fillRect(0, 0, s, s);
+    const rings = [0.42, 0.28, 0.14];
+    const cols = ["#cfe8f2", "#9ed4e8", "#f26a4b"];
+    rings.forEach((rr2, i) => fillCircle(g, s * 0.5, s * 0.44, s * rr2, cols[i]));
+    drawAnimal(g, "penguin", s * 0.5, s * 0.44, s * 0.11);
+    drawAnimal(g, "owl", s * 0.76, s * 0.74, s * 0.1);
+    g.strokeStyle = "rgba(32,49,58,0.35)";
+    g.setLineDash([4, 4]);
+    g.lineWidth = 2;
+    g.beginPath();
+    g.moveTo(s * 0.2, s * 0.9);
+    g.lineTo(s * 0.46, s * 0.52);
+    g.stroke();
+    g.setLineDash([]);
+  }
+  constructor(env) {
+    super(env);
+    this.timeLeft = -1;
+    this.bodies = [];
+    this.scores = [0, 0];
+    this.end_ = 0;
+    this.slide = 0;
+    this.turn = 0;
+    this.phase = "aim";
+    this.drag = null;
+    this.betweenTimer = 0;
+    this.lastEndScore = null;
+    this.aiSpec = byTier(AI2, env.difficulty);
+    this.aiDelay = 0;
+  }
+  /* ------------------------------ geometry ---------------------------- */
+  arena() {
+    const pad = 16;
+    const top = 84;
+    const bottom = 44;
+    return {
+      x: pad,
+      y: top,
+      w: this.w - pad * 2,
+      h: this.h - top - bottom,
+      get cx() {
+        return this.x + this.w / 2;
+      },
+      get cy() {
+        return this.y + this.h / 2;
+      }
+    };
+  }
+  radius() {
+    const a = this.arena();
+    return Math.max(16, Math.min(a.w, a.h) * 0.055);
+  }
+  launchPoint(player) {
+    const a = this.arena();
+    const r = this.radius();
+    return {
+      x: a.cx,
+      y: player === 0 ? a.y + a.h - r - 6 : a.y + r + 6
+    };
+  }
+  maxSpeed() {
+    return this.arena().h * 1.1;
+  }
+  get isAiTurn() {
+    return this.env.mode === "1p" && this.turn === 1;
+  }
+  /* ------------------------------- loop ------------------------------- */
+  update(dt) {
+    if (this.over) return;
+    if (this.phase === "between") {
+      this.betweenTimer -= dt;
+      if (this.betweenTimer <= 0) this.startEnd();
+      return;
+    }
+    if (this.phase === "moving") {
+      stepPhysics(this.bodies, dt, this.arena(), this.radius());
+      if (this.bodies.every((b) => b.vx === 0 && b.vy === 0)) this.afterSlide();
+      return;
+    }
+    if (this.isAiTurn) {
+      this.aiDelay -= dt;
+      if (this.aiDelay <= 0) this.aiShoot();
+    }
+  }
+  afterSlide() {
+    this.phase = "aim";
+    this.slide += 1;
+    if (this.slide >= SLIDES_PER_END * 2) return this.scoreEnd();
+    this.turn = 1 - this.turn;
+    this.aiDelay = this.env.rng.range(0.6, 1.1);
+  }
+  scoreEnd() {
+    const result = endScore(this.bodies, this.arena());
+    this.lastEndScore = result;
+    if (result.player >= 0) this.scores[result.player] += result.points;
+    this.env.sfx[result.player === 0 ? "win" : "thunk"]();
+    this.end_ += 1;
+    if (this.end_ >= ENDS) return this.finish();
+    this.phase = "between";
+    this.betweenTimer = 2.2;
+  }
+  startEnd() {
+    this.bodies = [];
+    this.slide = 0;
+    this.turn = this.lastEndScore && this.lastEndScore.player === 0 ? 1 : 0;
+    this.phase = "aim";
+    this.aiDelay = 1;
+  }
+  finish() {
+    const [a, b] = this.scores;
+    this.end({
+      scores: this.scores,
+      winner: a === b ? null : a > b ? 0 : 1,
+      stars: this.starsFor(a, b, 3)
+    });
+  }
+  /* ------------------------------ shooting ---------------------------- */
+  /** @param {number} vx @param {number} vy */
+  launch(vx, vy) {
+    const p = this.launchPoint(this.turn);
+    this.bodies.push({ x: p.x, y: p.y, vx, vy, player: this.turn });
+    this.phase = "moving";
+    this.env.sfx.slide();
+  }
+  /** Convert an aim point and a 0..1 power into a launch velocity. */
+  velocityToward(target, power, wobble) {
+    const from = this.launchPoint(this.turn);
+    let angle = Math.atan2(target.y - from.y, target.x - from.x);
+    let p = power;
+    if (wobble) {
+      angle += wobble.angle;
+      p *= wobble.power;
+    }
+    p = Math.max(0.12, Math.min(1, p));
+    const speed = this.maxSpeed() * p;
+    return { vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed };
+  }
+  /** Power needed to park a penguin on a given point, ignoring collisions. */
+  powerFor(target) {
+    const from = this.launchPoint(this.turn);
+    const dist = Math.hypot(target.x - from.x, target.y - from.y);
+    const v0 = dist * -Math.log(DAMPING);
+    return v0 / this.maxSpeed();
+  }
+  aiShoot() {
+    const a = this.arena();
+    const centre = { x: a.cx, y: a.cy };
+    const wobble = aimError(this.env.rng, this.aiSpec);
+    let aim = centre;
+    let power = this.powerFor(centre);
+    if (this.aiSpec.plan === "takeout") {
+      const mine = nearest(this.bodies, 1, a);
+      const theirs = nearest(this.bodies, 0, a);
+      if (theirs && (!mine || theirs.dist < mine.dist)) {
+        aim = { x: theirs.body.x, y: theirs.body.y };
+        power = Math.min(1, this.powerFor(aim) * 1.5);
+      }
+    } else if (this.aiSpec.plan === "simulate") {
+      const best = this.bestSimulatedShot(centre);
+      aim = best.aim;
+      power = best.power;
+    }
+    const v = this.velocityToward(aim, power, wobble);
+    this.launch(v.vx, v.vy);
+  }
+  /**
+   * Rocket's shot selection: run each candidate through the same physics the
+   * players get and keep whichever leaves the end in the best shape.
+   */
+  bestSimulatedShot(centre) {
+    const a = this.arena();
+    const r = this.radius();
+    const candidates = [{ aim: centre, power: this.powerFor(centre) }];
+    for (const body of this.bodies) {
+      const aim = { x: body.x, y: body.y };
+      candidates.push({ aim, power: Math.min(1, this.powerFor(aim) * 1.5) });
+      candidates.push({ aim, power: Math.min(1, this.powerFor(aim) * 1.15) });
+    }
+    for (let i = 0; i < 8; i++) {
+      const ang = i / 8 * Math.PI * 2;
+      const aim = { x: a.cx + Math.cos(ang) * r * 1.6, y: a.cy + Math.sin(ang) * r * 1.6 };
+      candidates.push({ aim, power: this.powerFor(aim) });
+    }
+    let best = candidates[0];
+    let bestValue = -Infinity;
+    for (const c of candidates) {
+      const v = this.velocityToward(c.aim, c.power, null);
+      const from = this.launchPoint(this.turn);
+      const sim = this.bodies.map((b) => ({ ...b }));
+      sim.push({ x: from.x, y: from.y, vx: v.vx, vy: v.vy, player: this.turn });
+      settle(sim, a, r);
+      const value = evaluate(sim, a, this.turn);
+      if (value > bestValue) {
+        bestValue = value;
+        best = c;
+      }
+    }
+    return best;
+  }
+  /* ------------------------------ input ------------------------------- */
+  pointer(p) {
+    if (this.over || this.phase !== "aim" || this.isAiTurn) return;
+    const from = this.launchPoint(this.turn);
+    if (p.type === "down") {
+      this.drag = { sx: p.x, sy: p.y, x: p.x, y: p.y };
+      return;
+    }
+    if (!this.drag) return;
+    if (p.type === "move") {
+      this.drag.x = p.x;
+      this.drag.y = p.y;
+      return;
+    }
+    const dx = this.drag.sx - this.drag.x;
+    const dy = this.drag.sy - this.drag.y;
+    const len = Math.hypot(dx, dy);
+    this.drag = null;
+    if (len < 18) return;
+    const reach = Math.min(this.w, this.h) * 0.3;
+    const power = Math.min(1, len / reach);
+    const v = this.velocityToward({ x: from.x + dx, y: from.y + dy }, power, null);
+    this.launch(v.vx, v.vy);
+  }
+  /* ------------------------------ render ------------------------------ */
+  render(g) {
+    const a = this.arena();
+    const r = this.radius();
+    g.fillStyle = "#dceef5";
+    g.fillRect(0, 0, this.w, this.h);
+    g.fillStyle = "#f2fafd";
+    g.fillRect(a.x, a.y, a.w, a.h);
+    g.strokeStyle = "#a9cfdd";
+    g.lineWidth = 3;
+    g.strokeRect(a.x, a.y, a.w, a.h);
+    const maxR = Math.min(a.w, a.h) * 0.3;
+    const rings = [
+      { f: 1, c: "#cfe8f2" },
+      { f: 0.66, c: "#9ed4e8" },
+      { f: 0.33, c: "#f7b7a6" },
+      { f: 0.12, c: "#f26a4b" }
+    ];
+    for (const ring of rings) fillCircle(g, a.cx, a.cy, maxR * ring.f, ring.c);
+    for (const player of [0, 1]) {
+      const lp = this.launchPoint(player);
+      circle(g, lp.x, lp.y, r * 1.15);
+      g.strokeStyle = `${PLAYER[player].hex}66`;
+      g.setLineDash([6, 6]);
+      g.lineWidth = 3;
+      g.stroke();
+      g.setLineDash([]);
+    }
+    for (const b of this.bodies) {
+      fillCircle(g, b.x, b.y + r * 0.2, r, "rgba(32,49,58,0.13)");
+      fillCircle(g, b.x, b.y, r, PLAYER[b.player].hex);
+      drawAnimal(g, b.player === 0 ? "penguin" : "owl", b.x, b.y, r * 0.78);
+    }
+    if (this.phase === "aim" && !this.isAiTurn) this.renderAim(g, r);
+    if (this.phase === "aim" && this.isAiTurn) {
+      text(g, "AI is lining up...", this.w / 2, this.h - 22, 18, { fill: "#5b7480" });
+    }
+    if (this.phase === "between") this.renderEndBanner(g);
+    this.renderHud(g);
+  }
+  renderAim(g, r) {
+    const from = this.launchPoint(this.turn);
+    const pending = this.bodies.length < SLIDES_PER_END * 2;
+    if (!pending) return;
+    fillCircle(g, from.x, from.y, r, `${PLAYER[this.turn].hex}cc`);
+    drawAnimal(g, this.turn === 0 ? "penguin" : "owl", from.x, from.y, r * 0.78);
+    if (!this.drag) return;
+    const dx = this.drag.sx - this.drag.x;
+    const dy = this.drag.sy - this.drag.y;
+    const len = Math.hypot(dx, dy);
+    if (len < 8) return;
+    const reach = Math.min(this.w, this.h) * 0.3;
+    const power = Math.min(1, len / reach);
+    g.save();
+    g.strokeStyle = PLAYER[this.turn].hex;
+    g.setLineDash([10, 8]);
+    g.lineWidth = 5;
+    g.lineCap = "round";
+    g.beginPath();
+    g.moveTo(from.x, from.y);
+    g.lineTo(
+      from.x + dx / len * reach * power * 1.6,
+      from.y + dy / len * reach * power * 1.6
+    );
+    g.stroke();
+    g.restore();
+    for (let i = 0; i < 5; i++) {
+      fillCircle(
+        g,
+        from.x - 44 + i * 22,
+        from.y + (this.turn === 0 ? -r - 22 : r + 22),
+        6,
+        power * 5 > i ? PLAYER[this.turn].hex : "rgba(32,49,58,0.15)"
+      );
+    }
+  }
+  renderEndBanner(g) {
+    const res = this.lastEndScore;
+    g.fillStyle = "rgba(32,49,58,0.75)";
+    g.fillRect(0, this.h / 2 - 60, this.w, 120);
+    const line = res && res.player >= 0 ? `Player ${res.player + 1} scores ${res.points}` : "Nobody scores";
+    text(g, line, this.w / 2, this.h / 2 - 12, 28, { fill: "#ffffff", outline: false });
+    text(
+      g,
+      `End ${this.end_ + 1} of ${ENDS} next`,
+      this.w / 2,
+      this.h / 2 + 24,
+      18,
+      { fill: "#9fb0bd", outline: false }
+    );
+  }
+  renderHud(g) {
+    for (const p of [0, 1]) {
+      const x = p === 0 ? 82 : this.w - 20;
+      const align = p === 0 ? "left" : "right";
+      drawAnimal(g, p === 0 ? "penguin" : "owl", p === 0 ? x + 16 : x - 16, 26, 16);
+      text(
+        g,
+        String(this.scores[p]),
+        p === 0 ? x + 42 : x - 42,
+        26,
+        24,
+        { fill: PLAYER[p].dark, align }
+      );
+    }
+    const left = SLIDES_PER_END * 2 - this.slide;
+    for (let i = 0; i < left; i++) {
+      fillCircle(g, this.w / 2 - (left - 1) * 8 + i * 16, 26, 6, "rgba(32,49,58,0.28)");
+    }
+    text(
+      g,
+      `End ${Math.min(ENDS, this.end_ + 1)}/${ENDS}`,
+      this.w / 2,
+      this.h - 22,
+      16,
+      { fill: "#5b7480" }
+    );
+  }
+};
+function stepPhysics(bodies, dt, arena, r) {
+  const decay = DAMPING ** dt;
+  for (const b of bodies) {
+    b.x += b.vx * dt;
+    b.y += b.vy * dt;
+    b.vx *= decay;
+    b.vy *= decay;
+    if (b.x < arena.x + r) {
+      b.x = arena.x + r;
+      b.vx = Math.abs(b.vx) * WALL_BOUNCE;
+    }
+    if (b.x > arena.x + arena.w - r) {
+      b.x = arena.x + arena.w - r;
+      b.vx = -Math.abs(b.vx) * WALL_BOUNCE;
+    }
+    if (b.y < arena.y + r) {
+      b.y = arena.y + r;
+      b.vy = Math.abs(b.vy) * WALL_BOUNCE;
+    }
+    if (b.y > arena.y + arena.h - r) {
+      b.y = arena.y + arena.h - r;
+      b.vy = -Math.abs(b.vy) * WALL_BOUNCE;
+    }
+    if (Math.hypot(b.vx, b.vy) < STOP) {
+      b.vx = 0;
+      b.vy = 0;
+    }
+  }
+  for (let i = 0; i < bodies.length; i++) {
+    for (let j = i + 1; j < bodies.length; j++) {
+      const a = bodies[i];
+      const b = bodies[j];
+      let dx = b.x - a.x;
+      let dy = b.y - a.y;
+      let dist = Math.hypot(dx, dy);
+      if (dist === 0) {
+        dx = 0.01;
+        dy = 0;
+        dist = 0.01;
+      }
+      if (dist >= r * 2) continue;
+      const nx = dx / dist;
+      const ny = dy / dist;
+      const overlap = r * 2 - dist;
+      a.x -= nx * overlap * 0.5;
+      a.y -= ny * overlap * 0.5;
+      b.x += nx * overlap * 0.5;
+      b.y += ny * overlap * 0.5;
+      const rel = (b.vx - a.vx) * nx + (b.vy - a.vy) * ny;
+      if (rel > 0) continue;
+      const impulse = rel * 0.94;
+      a.vx += impulse * nx;
+      a.vy += impulse * ny;
+      b.vx -= impulse * nx;
+      b.vy -= impulse * ny;
+    }
+  }
+}
+function settle(bodies, arena, r) {
+  for (let i = 0; i < 900; i++) {
+    stepPhysics(bodies, STEP, arena, r);
+    if (bodies.every((b) => b.vx === 0 && b.vy === 0)) return;
+  }
+}
+function nearest(bodies, player, arena) {
+  let best = null;
+  for (const b of bodies) {
+    if (b.player !== player) continue;
+    const dist = Math.hypot(b.x - arena.cx, b.y - arena.cy);
+    if (!best || dist < best.dist) best = { body: b, dist };
+  }
+  return best;
+}
+function endScore(bodies, arena) {
+  const a = nearest(bodies, 0, arena);
+  const b = nearest(bodies, 1, arena);
+  if (!a && !b) return { player: -1, points: 0 };
+  if (!b) return { player: 0, points: bodies.filter((x) => x.player === 0).length };
+  if (!a) return { player: 1, points: bodies.filter((x) => x.player === 1).length };
+  const winner = a.dist < b.dist ? 0 : 1;
+  const limit = winner === 0 ? b.dist : a.dist;
+  const points = bodies.filter((x) => x.player === winner && Math.hypot(x.x - arena.cx, x.y - arena.cy) < limit).length;
+  return { player: winner, points };
+}
+function evaluate(bodies, arena, player) {
+  const res = endScore(bodies, arena);
+  const sign = res.player === player ? 1 : -1;
+  const mine = nearest(bodies, player, arena);
+  const closeness = mine ? -mine.dist / Math.max(arena.w, arena.h) : -2;
+  return res.player < 0 ? closeness : sign * res.points * 10 + closeness;
+}
+
+// src/games/memory-zoo.js
+var AI3 = [
+  { capacity: 2, accuracy: 0.4 },
+  { capacity: 6, accuracy: 0.8 },
+  { capacity: Infinity, accuracy: 1 }
+];
+var CARD_COUNT = [12, 16, 20];
+var HIDE_DELAY = 1.15;
+var MemoryZoo = class extends MiniGame {
+  static meta = {
+    id: "memory-zoo",
+    title: "Memory Zoo",
+    category: "Memory",
+    verb: "tap",
+    layout: "shared",
+    seconds: 100,
+    tint: "#5cb85c",
+    mascot: "panda"
+  };
+  static icon(g, s) {
+    const w = s * 0.4;
+    const h = s * 0.46;
+    cardBack(g, s * 0.06, s * 0.08, w, h, "#4aa3c7");
+    animalCard(g, "panda", s * 0.54, s * 0.08, w, h, { bg: "#fff" });
+    animalCard(g, "owl", s * 0.06, s * 0.48, w, h, { bg: "#fff" });
+    cardBack(g, s * 0.54, s * 0.48, w, h, "#4aa3c7");
+  }
+  constructor(env) {
+    super(env);
+    this.timeLeft = -1;
+    const count = env.mode === "2p" ? 16 : byTier(CARD_COUNT, env.difficulty);
+    const kinds = env.rng.shuffle(ANIMAL_IDS.slice()).slice(0, count / 2);
+    const deck = env.rng.shuffle([...kinds, ...kinds]);
+    this.cards = deck.map((animal) => ({ animal, up: false, matched: false, t: 0 }));
+    this.picked = [];
+    this.hideTimer = 0;
+    this.turn = 0;
+    this.pairs = [[], []];
+    this.thinker = new Thinker(env.rng, [0.55, 1]);
+    this.memory = env.mode === "1p" ? new LeakyMemory(env.rng, byTier(AI3, env.difficulty)) : null;
+  }
+  get isAiTurn() {
+    return this.env.mode === "1p" && this.turn === 1;
+  }
+  /* ------------------------------- loop ------------------------------- */
+  update(dt) {
+    if (this.over) return;
+    for (const c of this.cards) {
+      const goal = c.up || c.matched ? 1 : 0;
+      c.t += Math.sign(goal - c.t) * Math.min(Math.abs(goal - c.t), dt * 6);
+    }
+    if (this.hideTimer > 0) {
+      this.hideTimer -= dt;
+      if (this.hideTimer <= 0) this.resolveMiss();
+      return;
+    }
+    if (this.isAiTurn && !this.thinker.busy && this.picked.length < 2) {
+      this.thinker.schedule(() => this.aiMove());
+    }
+    this.thinker.update(dt);
+  }
+  /* ------------------------------- rules ------------------------------ */
+  flip(index) {
+    const card = this.cards[index];
+    if (!card || card.up || card.matched || this.picked.length >= 2) return;
+    card.up = true;
+    this.picked.push(index);
+    this.env.sfx.tap();
+    if (this.memory) this.memory.see(index, card.animal);
+    if (this.picked.length === 2) {
+      const [a, b] = this.picked;
+      if (this.cards[a].animal === this.cards[b].animal) {
+        this.cards[a].matched = true;
+        this.cards[b].matched = true;
+        this.pairs[this.turn].push(this.cards[a].animal);
+        if (this.memory) {
+          this.memory.forget(a);
+          this.memory.forget(b);
+        }
+        this.picked = [];
+        this.env.sfx.good();
+        if (this.cards.every((c) => c.matched)) this.finish();
+      } else {
+        this.hideTimer = HIDE_DELAY;
+      }
+    }
+  }
+  resolveMiss() {
+    this.hideTimer = 0;
+    for (const i of this.picked) this.cards[i].up = false;
+    this.picked = [];
+    this.turn = 1 - this.turn;
+    this.thinker.cancel();
+  }
+  finish() {
+    const scores = [this.pairs[0].length, this.pairs[1].length];
+    this.end({
+      scores,
+      winner: scores[0] === scores[1] ? null : scores[0] > scores[1] ? 0 : 1,
+      stars: this.starsFor(scores[0], scores[1], 2)
+    });
+  }
+  /* -------------------------------- AI -------------------------------- */
+  aiMove() {
+    if (this.over || this.hideTimer > 0) return;
+    const known = this.memory.recall();
+    const hidden = [];
+    for (let i = 0; i < this.cards.length; i++) {
+      const c = this.cards[i];
+      if (!c.matched && !c.up) hidden.push(i);
+    }
+    if (!hidden.length) return;
+    if (this.picked.length === 0) {
+      for (const animal of Object.keys(known)) {
+        const spots = known[animal].filter((i) => hidden.includes(i));
+        if (spots.length >= 2) {
+          this.flip(spots[0]);
+          this.thinker.schedule(() => this.flip(spots[1]));
+          return;
+        }
+      }
+      this.flip(this.env.rng.pick(hidden));
+      this.thinker.schedule(() => this.aiMove());
+      return;
+    }
+    const first = this.picked[0];
+    const want = this.cards[first].animal;
+    const partner = (known[want] || []).find((i) => i !== first && hidden.includes(i));
+    this.flip(partner != null ? partner : this.env.rng.pick(hidden));
+  }
+  /* ------------------------------ layout ------------------------------ */
+  layout() {
+    const count = this.cards.length;
+    const trayH = Math.min(64, this.h * 0.09);
+    const availW = this.w - 24;
+    const availH = this.h - trayH * 2 - 24;
+    let best = { cols: 4, rows: Math.ceil(count / 4), cw: 0, ch: 0 };
+    for (let cols = 2; cols <= count; cols++) {
+      const rows = Math.ceil(count / cols);
+      if (rows * cols > count + cols - 1) continue;
+      const cw2 = availW / cols;
+      const ch2 = availH / rows;
+      const size = Math.min(cw2 / 0.76, ch2);
+      if (size > best.ch) best = { cols, rows, cw: cw2, ch: size };
+    }
+    const ch = Math.min(best.ch * 0.92, 180);
+    const cw = ch * 0.76;
+    const gridW = best.cols * cw + (best.cols - 1) * cw * 0.12;
+    const gridH = best.rows * ch + (best.rows - 1) * ch * 0.12;
+    return {
+      cols: best.cols,
+      rows: best.rows,
+      cw,
+      ch,
+      gapX: cw * 0.12,
+      gapY: ch * 0.12,
+      x: (this.w - gridW) / 2,
+      y: trayH + (this.h - trayH * 2 - gridH) / 2,
+      trayH
+    };
+  }
+  cardRect(i, L) {
+    const r = Math.floor(i / L.cols);
+    const c = i % L.cols;
+    return {
+      x: L.x + c * (L.cw + L.gapX),
+      y: L.y + r * (L.ch + L.gapY),
+      w: L.cw,
+      h: L.ch
+    };
+  }
+  /* ------------------------------ input ------------------------------- */
+  pointer(p) {
+    if (p.type !== "down" || this.over || this.isAiTurn || this.hideTimer > 0) return;
+    const L = this.layout();
+    for (let i = 0; i < this.cards.length; i++) {
+      const r = this.cardRect(i, L);
+      if (p.x >= r.x && p.x <= r.x + r.w && p.y >= r.y && p.y <= r.y + r.h) {
+        this.flip(i);
+        return;
+      }
+    }
+  }
+  /* ------------------------------ render ------------------------------ */
+  render(g) {
+    g.fillStyle = "#f2f7ef";
+    g.fillRect(0, 0, this.w, this.h);
+    const L = this.layout();
+    const glow = PLAYER[this.turn].hex;
+    g.strokeStyle = glow;
+    g.globalAlpha = 0.55 + Math.sin(Date.now() / 400) * 0.2;
+    g.lineWidth = 10;
+    g.strokeRect(5, 5, this.w - 10, this.h - 10);
+    g.globalAlpha = 1;
+    for (let i = 0; i < this.cards.length; i++) {
+      const card = this.cards[i];
+      const r = this.cardRect(i, L);
+      const t = easeInOut(card.t);
+      const scaleX = Math.abs(1 - t * 2);
+      g.save();
+      g.translate(r.x + r.w / 2, r.y + r.h / 2);
+      if (card.matched) {
+        g.globalAlpha = 0.45;
+        g.scale(0.9, 0.9);
+      }
+      g.scale(Math.max(0.02, scaleX), 1);
+      if (t < 0.5) cardBack(g, -r.w / 2, -r.h / 2, r.w, r.h, "#4aa3c7");
+      else animalCard(g, card.animal, -r.w / 2, -r.h / 2, r.w, r.h, { bg: "#ffffff" });
+      g.restore();
+    }
+    this.renderTray(g, 0, this.h - L.trayH, L.trayH);
+    this.renderTray(g, 1, 0, L.trayH);
+  }
+  /** A player's zoo enclosure: every pair they have won, lined up. */
+  renderTray(g, player, y, h) {
+    const mine = this.pairs[player];
+    fillRR(
+      g,
+      8,
+      y + 6,
+      this.w - 16,
+      h - 12,
+      (h - 12) / 2,
+      player === this.turn ? "rgba(32,49,58,0.09)" : "rgba(32,49,58,0.04)"
+    );
+    const badge = h * 0.32;
+    const cx = player === 0 ? badge + 18 : this.w - badge - 18;
+    drawAnimal(
+      g,
+      player === 0 ? "panda" : "owl",
+      cx,
+      y + h / 2,
+      badge,
+      { blink: player !== this.turn }
+    );
+    if (this.env.mode === "1p" && player === 1) {
+      text(
+        g,
+        "AI",
+        cx - badge - 12,
+        y + h / 2,
+        15,
+        { fill: PLAYER[1].dark, align: "right" }
+      );
+    }
+    const dir = player === 0 ? 1 : -1;
+    const startX = player === 0 ? badge * 2 + 22 : this.w - badge * 2 - 22;
+    const runway = player === 0 ? this.w - startX - 20 : startX - 88;
+    const step = Math.max(10, Math.min(h * 0.68, runway / Math.max(6, mine.length)));
+    mine.forEach((animal, i) => {
+      drawAnimal(g, animal, startX + dir * i * step, y + h / 2, step * 0.42);
+    });
+  }
+};
+
+// src/games/star-maze.js
+var N2 = 1;
+var E = 2;
+var S = 4;
+var W = 8;
+var DIRS = [
+  { bit: N2, dr: -1, dc: 0, opp: S },
+  { bit: E, dr: 0, dc: 1, opp: W },
+  { bit: S, dr: 1, dc: 0, opp: N2 },
+  { bit: W, dr: 0, dc: -1, opp: E }
+];
+var AI4 = [
+  { speed: 0.75, mode: "greedy", wrongTurn: 0.1 },
+  { speed: 1, mode: "path", wrongTurn: 0 },
+  { speed: 1.15, mode: "contest", wrongTurn: 0 }
+];
+var STAR_COUNT = 8;
+var BASE_SPEED = 4.2;
+var StarMaze = class extends MiniGame {
+  static meta = {
+    id: "star-maze",
+    title: "Star Maze Dash",
+    category: "Dexterity",
+    verb: "drag",
+    layout: "shared",
+    seconds: 60,
+    tint: "#f2c14e",
+    mascot: "rabbit"
+  };
+  static icon(g, s) {
+    g.fillStyle = "#eef3f6";
+    g.fillRect(0, 0, s, s);
+    g.strokeStyle = "#20313a";
+    g.lineWidth = s * 0.075;
+    g.lineCap = "round";
+    const seg = [
+      [0.2, 0.15, 0.2, 0.62],
+      [0.2, 0.62, 0.55, 0.62],
+      [0.5, 0.15, 0.5, 0.42],
+      [0.5, 0.42, 0.85, 0.42],
+      [0.78, 0.62, 0.78, 0.9],
+      [0.32, 0.85, 0.62, 0.85]
+    ];
+    for (const [x1, y1, x2, y2] of seg) {
+      g.beginPath();
+      g.moveTo(x1 * s, y1 * s);
+      g.lineTo(x2 * s, y2 * s);
+      g.stroke();
+    }
+    star(g, s * 0.76, s * 0.2, s * 0.11);
+    g.fillStyle = "#f2c14e";
+    g.fill();
+    drawAnimal(g, "rabbit", s * 0.3, s * 0.72, s * 0.13);
+  }
+  constructor(env) {
+    super(env);
+    const short = Math.min(this.w, this.h);
+    const cellGuess = short / 10;
+    this.cols = Math.max(7, Math.min(17, Math.round(this.w / cellGuess)));
+    this.rows = Math.max(7, Math.min(17, Math.round(this.h / cellGuess)));
+    this.maze = generate(env.rng, this.cols, this.rows);
+    this.scores = [0, 0];
+    this.players = [
+      this.spawn(0, 0),
+      this.spawn(this.rows - 1, this.cols - 1)
+    ];
+    this.grip = /* @__PURE__ */ new Map();
+    this.stars = [];
+    for (let i = 0; i < STAR_COUNT; i++) this.addStar();
+    const spec = byTier(AI4, env.difficulty);
+    this.aiSpec = spec;
+    this.aiRepath = 0;
+    this.aiNext = -1;
+    this.pop = [];
+  }
+  spawn(r, c) {
+    return { r, c, x: 0, y: 0, placed: false, tilt: 0 };
+  }
+  resize(w, h) {
+    super.resize(w, h);
+    for (const p of this.players) p.placed = false;
+  }
+  /* ------------------------------ geometry ---------------------------- */
+  geom() {
+    const top = 82;
+    const cell = Math.floor(Math.min(this.w / this.cols, (this.h - top - 14) / this.rows));
+    const mw = cell * this.cols;
+    const mh = cell * this.rows;
+    return { cell, ox: (this.w - mw) / 2, oy: top + (this.h - top - 14 - mh) / 2, mw, mh };
+  }
+  cellCentre(index, G) {
+    const r = Math.floor(index / this.cols);
+    const c = index % this.cols;
+    return { x: G.ox + c * G.cell + G.cell / 2, y: G.oy + r * G.cell + G.cell / 2 };
+  }
+  ensurePlaced(G) {
+    for (const p of this.players) {
+      if (!p.placed) {
+        const centre = this.cellCentre(p.r * this.cols + p.c, G);
+        p.x = centre.x;
+        p.y = centre.y;
+        p.placed = true;
+      }
+    }
+  }
+  addStar() {
+    const total = this.cols * this.rows;
+    for (let attempt = 0; attempt < 60; attempt++) {
+      const i = this.env.rng.int(0, total - 1);
+      if (this.stars.includes(i)) continue;
+      const near = this.players.some((p) => Math.abs(Math.floor(i / this.cols) - p.r) + Math.abs(i % this.cols - p.c) < 2);
+      if (near) continue;
+      this.stars.push(i);
+      return;
+    }
+    this.stars.push(this.env.rng.int(0, total - 1));
+  }
+  /* ------------------------------- loop ------------------------------- */
+  update(dt) {
+    if (this.over) return;
+    this.timeLeft -= dt;
+    if (this.timeLeft <= 0) return this.finish();
+    const G = this.geom();
+    this.ensurePlaced(G);
+    const speed = BASE_SPEED * G.cell;
+    for (let i = 0; i < 2; i++) {
+      const p = this.players[i];
+      const isAi = this.env.mode === "1p" && i === 1;
+      const mult = isAi ? this.aiSpec.speed : 1;
+      if (isAi) this.steerAi(dt, G);
+      if (p.goal) this.move(p, p.goal, speed * mult * dt, G);
+      p.r = clampIndex(Math.floor((p.y - G.oy) / G.cell), this.rows);
+      p.c = clampIndex(Math.floor((p.x - G.ox) / G.cell), this.cols);
+      this.collect(i, G);
+    }
+    for (const b of this.pop) b.t += dt * 2.4;
+    this.pop = this.pop.filter((b) => b.t < 1);
+  }
+  /** Move toward a point, clamping against walls one axis at a time. */
+  move(p, goal, step, G) {
+    const dx = goal.x - p.x;
+    const dy = goal.y - p.y;
+    const dist = Math.hypot(dx, dy);
+    if (dist < 0.5) return;
+    const nx = p.x + dx / dist * Math.min(step, dist);
+    const ny = p.y + dy / dist * Math.min(step, dist);
+    p.tilt = Math.max(-0.3, Math.min(0.3, (nx - p.x) * 0.08));
+    p.x = this.clampAxis(p, nx, p.y, G, true);
+    p.y = this.clampAxis(p, p.x, ny, G, false);
+  }
+  clampAxis(p, nx, ny, G, horizontal) {
+    const rad = G.cell * 0.3;
+    const col = clampIndex(Math.floor((p.x - G.ox) / G.cell), this.cols);
+    const row = clampIndex(Math.floor((p.y - G.oy) / G.cell), this.rows);
+    const wall = this.maze[row * this.cols + col];
+    if (horizontal) {
+      const left = G.ox + col * G.cell;
+      if (nx > p.x && wall & E) return Math.min(nx, left + G.cell - rad);
+      if (nx < p.x && wall & W) return Math.max(nx, left + rad);
+      return Math.max(G.ox + rad, Math.min(nx, G.ox + G.mw - rad));
+    }
+    const top = G.oy + row * G.cell;
+    if (ny > p.y && wall & S) return Math.min(ny, top + G.cell - rad);
+    if (ny < p.y && wall & N2) return Math.max(ny, top + rad);
+    return Math.max(G.oy + rad, Math.min(ny, G.oy + G.mh - rad));
+  }
+  collect(i, G) {
+    const p = this.players[i];
+    for (let s = 0; s < this.stars.length; s++) {
+      const centre = this.cellCentre(this.stars[s], G);
+      if (Math.hypot(centre.x - p.x, centre.y - p.y) < G.cell * 0.44) {
+        this.stars.splice(s, 1);
+        this.scores[i] += 1;
+        this.pop.push({ x: centre.x, y: centre.y, t: 0, player: i });
+        this.env.sfx.good();
+        this.addStar();
+        if (this.aiNext >= 0) this.aiRepath = 0;
+        return;
+      }
+    }
+  }
+  finish() {
+    const [a, b] = this.scores;
+    this.end({
+      scores: this.scores,
+      winner: a === b ? null : a > b ? 0 : 1,
+      stars: this.starsFor(a, b, 4)
+    });
+  }
+  /* -------------------------------- AI -------------------------------- */
+  steerAi(dt, G) {
+    const ai = this.players[1];
+    this.aiRepath -= dt;
+    if (this.aiRepath <= 0) {
+      this.aiRepath = 0.28;
+      this.aiNext = this.chooseNextCell(ai);
+    }
+    if (this.aiNext >= 0) {
+      ai.goal = this.cellCentre(this.aiNext, G);
+    } else {
+      ai.goal = null;
+    }
+  }
+  /** @returns {number} the cell index to walk into next, or -1 */
+  chooseNextCell(ai) {
+    if (!this.stars.length) return -1;
+    const from = ai.r * this.cols + ai.c;
+    const { dist, parent } = bfs(this.maze, this.cols, this.rows, from);
+    let target = -1;
+    if (this.aiSpec.mode === "greedy") {
+      let best = Infinity;
+      for (const s of this.stars) {
+        const d = Math.hypot(Math.floor(s / this.cols) - ai.r, s % this.cols - ai.c);
+        if (d < best) {
+          best = d;
+          target = s;
+        }
+      }
+    } else if (this.aiSpec.mode === "contest") {
+      const human = this.players[0];
+      const theirs = bfs(
+        this.maze,
+        this.cols,
+        this.rows,
+        human.r * this.cols + human.c
+      ).dist;
+      let best = Infinity;
+      let fallback = Infinity;
+      let fallbackCell = -1;
+      for (const s of this.stars) {
+        const mine = dist[s];
+        if (mine === Infinity) continue;
+        if (mine < fallback) {
+          fallback = mine;
+          fallbackCell = s;
+        }
+        if (mine < theirs[s] && mine < best) {
+          best = mine;
+          target = s;
+        }
+      }
+      if (target < 0) target = fallbackCell;
+    } else {
+      let best = Infinity;
+      for (const s of this.stars) {
+        if (dist[s] < best) {
+          best = dist[s];
+          target = s;
+        }
+      }
+    }
+    if (target < 0 || dist[target] === Infinity) return -1;
+    let node = target;
+    while (parent[node] !== from && parent[node] !== -1) node = parent[node];
+    if (parent[node] === -1) return -1;
+    if (this.aiSpec.wrongTurn > 0 && this.env.rng.chance(this.aiSpec.wrongTurn)) {
+      const options = openNeighbours(this.maze, this.cols, this.rows, from);
+      if (options.length > 1) return this.env.rng.pick(options);
+    }
+    return node;
+  }
+  /* ------------------------------ input ------------------------------- */
+  pointer(p) {
+    const G = this.geom();
+    this.ensurePlaced(G);
+    if (p.type === "down") {
+      const candidates = this.env.mode === "2p" ? [0, 1] : [0];
+      let best = -1;
+      let bestD = Infinity;
+      for (const i of candidates) {
+        if ([...this.grip.values()].includes(i)) continue;
+        const d = Math.hypot(this.players[i].x - p.x, this.players[i].y - p.y);
+        if (d < bestD) {
+          bestD = d;
+          best = i;
+        }
+      }
+      if (best < 0) return;
+      this.grip.set(p.id, best);
+      this.players[best].goal = { x: p.x, y: p.y };
+    } else if (p.type === "move") {
+      const i = this.grip.get(p.id);
+      if (i != null) this.players[i].goal = { x: p.x, y: p.y };
+    } else {
+      const i = this.grip.get(p.id);
+      if (i != null) {
+        this.players[i].goal = null;
+        this.grip.delete(p.id);
+      }
+    }
+  }
+  /* ------------------------------ render ------------------------------ */
+  render(g) {
+    const G = this.geom();
+    this.ensurePlaced(G);
+    g.fillStyle = "#f4efe3";
+    g.fillRect(0, 0, this.w, this.h);
+    g.fillStyle = "#ffffff";
+    g.fillRect(G.ox, G.oy, G.mw, G.mh);
+    g.strokeStyle = "#41616f";
+    g.lineWidth = Math.max(4, G.cell * 0.13);
+    g.lineCap = "round";
+    g.beginPath();
+    for (let r = 0; r < this.rows; r++) {
+      for (let c = 0; c < this.cols; c++) {
+        const wall = this.maze[r * this.cols + c];
+        const x = G.ox + c * G.cell;
+        const y = G.oy + r * G.cell;
+        if (wall & N2) {
+          g.moveTo(x, y);
+          g.lineTo(x + G.cell, y);
+        }
+        if (wall & W) {
+          g.moveTo(x, y);
+          g.lineTo(x, y + G.cell);
+        }
+        if (r === this.rows - 1 && wall & S) {
+          g.moveTo(x, y + G.cell);
+          g.lineTo(x + G.cell, y + G.cell);
+        }
+        if (c === this.cols - 1 && wall & E) {
+          g.moveTo(x + G.cell, y);
+          g.lineTo(x + G.cell, y + G.cell);
+        }
+      }
+    }
+    g.stroke();
+    const bob = Math.sin(Date.now() / 300) * G.cell * 0.05;
+    for (const s of this.stars) {
+      const centre = this.cellCentre(s, G);
+      star(g, centre.x, centre.y + bob, G.cell * 0.26);
+      g.fillStyle = "#f2c14e";
+      g.fill();
+      g.strokeStyle = "#c99a1e";
+      g.lineWidth = 2;
+      g.stroke();
+    }
+    for (const b of this.pop) {
+      g.globalAlpha = 1 - b.t;
+      fillCircle(g, b.x, b.y - b.t * 30, G.cell * 0.3 * (1 + b.t), PLAYER[b.player].hex);
+      g.globalAlpha = 1;
+    }
+    this.players.forEach((p, i) => {
+      fillCircle(g, p.x, p.y + G.cell * 0.22, G.cell * 0.26, "rgba(32,49,58,0.15)");
+      drawAnimal(g, i === 0 ? "rabbit" : "fox", p.x, p.y, G.cell * 0.28, { tilt: p.tilt });
+    });
+    this.renderScores(g, G);
+  }
+  renderScores(g, G) {
+    for (const i of [0, 1]) {
+      const x = i === 0 ? 78 : this.w - 16;
+      const align = i === 0 ? "left" : "right";
+      drawAnimal(g, i === 0 ? "rabbit" : "fox", i === 0 ? x + 16 : x - 16, 30, 14);
+      text(
+        g,
+        `${this.scores[i]}`,
+        i === 0 ? x + 40 : x - 40,
+        30,
+        26,
+        { fill: PLAYER[i].dark, align }
+      );
+    }
+    text(
+      g,
+      String(Math.ceil(Math.max(0, this.timeLeft))),
+      this.w / 2,
+      30,
+      24,
+      { fill: this.timeLeft <= 10 ? "#c8402a" : "#5b7480" }
+    );
+  }
+};
+function generate(rng, cols, rows) {
+  const cells = new Uint8Array(cols * rows).fill(N2 | E | S | W);
+  const seen = new Uint8Array(cols * rows);
+  const stack = [0];
+  seen[0] = 1;
+  while (stack.length) {
+    const cur = stack[stack.length - 1];
+    const r = Math.floor(cur / cols);
+    const c = cur % cols;
+    const options = [];
+    for (const d2 of DIRS) {
+      const nr = r + d2.dr;
+      const nc = c + d2.dc;
+      if (nr < 0 || nc < 0 || nr >= rows || nc >= cols) continue;
+      const idx2 = nr * cols + nc;
+      if (!seen[idx2]) options.push({ d: d2, idx: idx2 });
+    }
+    if (!options.length) {
+      stack.pop();
+      continue;
+    }
+    const { d, idx } = rng.pick(options);
+    cells[cur] &= ~d.bit;
+    cells[idx] &= ~d.opp;
+    seen[idx] = 1;
+    stack.push(idx);
+  }
+  const extra = Math.floor(cols * rows * 0.12);
+  for (let i = 0; i < extra; i++) {
+    const r = rng.int(1, rows - 2);
+    const c = rng.int(1, cols - 2);
+    const d = rng.pick(DIRS);
+    const nr = r + d.dr;
+    const nc = c + d.dc;
+    if (nr < 0 || nc < 0 || nr >= rows || nc >= cols) continue;
+    cells[r * cols + c] &= ~d.bit;
+    cells[nr * cols + nc] &= ~d.opp;
+  }
+  return cells;
+}
+function openNeighbours(maze, cols, rows, index) {
+  const r = Math.floor(index / cols);
+  const c = index % cols;
+  const out = [];
+  for (const d of DIRS) {
+    if (maze[index] & d.bit) continue;
+    const nr = r + d.dr;
+    const nc = c + d.dc;
+    if (nr < 0 || nc < 0 || nr >= rows || nc >= cols) continue;
+    out.push(nr * cols + nc);
+  }
+  return out;
+}
+function bfs(maze, cols, rows, from) {
+  const total = cols * rows;
+  const dist = new Array(total).fill(Infinity);
+  const parent = new Int32Array(total).fill(-1);
+  const queue = [from];
+  dist[from] = 0;
+  for (let head = 0; head < queue.length; head++) {
+    const cur = queue[head];
+    for (const nb of openNeighbours(maze, cols, rows, cur)) {
+      if (dist[nb] === Infinity) {
+        dist[nb] = dist[cur] + 1;
+        parent[nb] = cur;
+        queue.push(nb);
+      }
+    }
+  }
+  return { dist, parent };
+}
+function clampIndex(v, max) {
+  return v < 0 ? 0 : v >= max ? max - 1 : v;
+}
+
+// src/games/bubble-blitz.js
+var AI5 = [
+  { reaction: [1.1, 1.8], accuracy: 0.65 },
+  { reaction: [0.55, 0.95], accuracy: 0.85 },
+  { reaction: [0.3, 0.55], accuracy: 0.97 }
+];
+var BINS = 3;
+var SWIPE_MIN = 26;
+var BubbleBlitz = class extends MiniGame {
+  static meta = {
+    id: "bubble-blitz",
+    title: "Bubble Blitz",
+    category: "Dexterity",
+    verb: "swipe",
+    layout: "duel",
+    seconds: 75,
+    tint: "#4aa3c7",
+    mascot: "frog"
+  };
+  static icon(g, s) {
+    g.fillStyle = "#e8f4f8";
+    g.fillRect(0, 0, s, s);
+    const cols = [0, 3, 1];
+    cols.forEach((c, i) => {
+      fillRR(g, s * (0.08 + i * 0.3), s * 0.7, s * 0.24, s * 0.22, s * 0.05, PALETTE[c].hex);
+    });
+    fillCircle(g, s * 0.32, s * 0.28, s * 0.15, PALETTE[3].hex);
+    shapeGlyph(g, PALETTE[3].shape, s * 0.32, s * 0.28, s * 0.07, "#fff");
+    fillCircle(g, s * 0.7, s * 0.46, s * 0.12, PALETTE[1].hex);
+    shapeGlyph(g, PALETTE[1].shape, s * 0.7, s * 0.46, s * 0.055, "#fff");
+  }
+  constructor(env) {
+    super(env);
+    this.zones = duelZones(this.w, this.h);
+    this.colours = env.rng.shuffle(PALETTE.map((p) => p.id)).slice(0, BINS);
+    this.scores = [0, 0];
+    this.bubbles = [[], []];
+    this.spawnTimer = [0, 0];
+    this.drags = /* @__PURE__ */ new Map();
+    this.aiSpec = byTier(AI5, env.difficulty);
+    this.flash = [0, 0];
+  }
+  resize(w, h) {
+    super.resize(w, h);
+    this.zones = duelZones(w, h);
+  }
+  /* ------------------------------ helpers ----------------------------- */
+  binRects(zone) {
+    const h = Math.min(zone.h * 0.2, 90);
+    const pad = 10;
+    const w = (zone.w - pad * (BINS + 1)) / BINS;
+    const out = [];
+    for (let i = 0; i < BINS; i++) {
+      out.push({ x: pad + i * (w + pad), y: zone.h - h - pad, w, h, colour: this.colours[i] });
+    }
+    return out;
+  }
+  spawnInterval() {
+    const progress = 1 - this.timeLeft / this.constructor.meta.seconds;
+    return 1.5 - progress * 0.95;
+  }
+  /* ------------------------------- loop ------------------------------- */
+  update(dt) {
+    if (this.over) return;
+    this.timeLeft -= dt;
+    if (this.timeLeft <= 0) return this.finish();
+    for (let i = 0; i < 2; i++) {
+      if (this.flash[i] > 0) this.flash[i] -= dt;
+      this.updateHalf(i, dt);
+    }
+  }
+  updateHalf(player, dt) {
+    const zone = this.zones[player];
+    const bins = this.binRects(zone);
+    const list = this.bubbles[player];
+    const isAi = this.env.mode === "1p" && player === 1;
+    this.spawnTimer[player] -= dt;
+    if (this.spawnTimer[player] <= 0) {
+      this.spawnTimer[player] = this.spawnInterval() * this.env.rng.range(0.75, 1.25);
+      this.spawn(player, zone, isAi);
+    }
+    const fallSpeed = zone.h * 0.1;
+    for (let i = list.length - 1; i >= 0; i--) {
+      const b = list[i];
+      if (b.flying) {
+        b.flyT += dt * 3.4;
+        if (b.flyT >= 1) list.splice(i, 1);
+        continue;
+      }
+      if (!b.held) b.y += fallSpeed * dt;
+      b.wobble += dt * 3;
+      if (isAi) {
+        b.aiTimer -= dt;
+        if (b.aiTimer <= 0) this.sort(player, b, this.aiChoice(b), bins);
+      }
+      if (b.y > bins[0].y - b.r * 0.4 && !b.flying) {
+        list.splice(i, 1);
+        continue;
+      }
+    }
+  }
+  spawn(player, zone, isAi) {
+    const colour = this.env.rng.pick(this.colours);
+    const r = Math.min(zone.w, zone.h) * 0.075;
+    const bubble = {
+      colour,
+      r: Math.max(22, Math.min(r, 44)),
+      x: this.env.rng.range(zone.w * 0.12, zone.w * 0.88),
+      y: -r,
+      wobble: this.env.rng.range(0, 6),
+      held: false,
+      flying: null,
+      flyT: 0,
+      aiTimer: isAi ? this.env.rng.range(this.aiSpec.reaction[0], this.aiSpec.reaction[1]) : 0
+    };
+    this.bubbles[player].push(bubble);
+  }
+  aiChoice(bubble) {
+    const right = this.colours.indexOf(bubble.colour);
+    if (this.env.rng.chance(this.aiSpec.accuracy)) return right;
+    const wrong = [0, 1, 2].filter((i) => i !== right);
+    return this.env.rng.pick(wrong);
+  }
+  /** Send a bubble to a bin and score it. */
+  sort(player, bubble, binIndex, bins) {
+    if (bubble.flying) return;
+    const target = bins[binIndex];
+    const correct = this.colours[binIndex] === bubble.colour;
+    bubble.flying = { x: target.x + target.w / 2, y: target.y + target.h / 2, correct };
+    bubble.flyT = 0;
+    bubble.held = false;
+    if (correct) {
+      this.scores[player] += 1;
+      if (player === 0 || this.env.mode === "2p") this.env.sfx.pop();
+    } else {
+      this.scores[player] = Math.max(0, this.scores[player] - 1);
+      this.flash[player] = 0.3;
+      if (player === 0 || this.env.mode === "2p") this.env.sfx.bad();
+    }
+  }
+  finish() {
+    const [a, b] = this.scores;
+    this.end({
+      scores: this.scores,
+      winner: a === b ? null : a > b ? 0 : 1,
+      stars: this.starsFor(a, b, 5)
+    });
+  }
+  /* ------------------------------ input ------------------------------- */
+  pointer(p) {
+    if (this.over) return;
+    if (p.type === "down") {
+      const zone2 = zoneAt(this.zones, p.x, p.y);
+      if (!zone2) return;
+      if (zone2.index === 1 && this.env.mode === "1p") return;
+      const local2 = toLocal(zone2, p.x, p.y);
+      if (!local2) return;
+      let found = null;
+      for (const b of this.bubbles[zone2.index]) {
+        if (b.flying) continue;
+        if (Math.hypot(b.x - local2.x, b.y - local2.y) <= b.r * 1.5) {
+          if (!found || b.y > found.y) found = b;
+        }
+      }
+      if (!found) return;
+      found.held = true;
+      this.drags.set(p.id, { player: zone2.index, bubble: found, sx: local2.x, sy: local2.y });
+      return;
+    }
+    const drag = this.drags.get(p.id);
+    if (!drag) return;
+    const zone = this.zones[drag.player];
+    const local = toLocal(zone, p.x, p.y) || { x: drag.sx, y: drag.sy };
+    if (p.type === "move") {
+      drag.bubble.x = local.x;
+      drag.bubble.y = local.y;
+      return;
+    }
+    this.drags.delete(p.id);
+    drag.bubble.held = false;
+    const dx = local.x - drag.sx;
+    const dy = local.y - drag.sy;
+    if (Math.hypot(dx, dy) < SWIPE_MIN) return;
+    const bins = this.binRects(zone);
+    let index;
+    if (Math.abs(dx) > Math.abs(dy)) index = dx < 0 ? 0 : 2;
+    else index = dy > 0 ? 1 : this.nearestBin(drag.bubble.x, bins);
+    this.sort(drag.player, drag.bubble, index, bins);
+  }
+  nearestBin(x, bins) {
+    let best = 0;
+    let bestD = Infinity;
+    bins.forEach((b, i) => {
+      const d = Math.abs(b.x + b.w / 2 - x);
+      if (d < bestD) {
+        bestD = d;
+        best = i;
+      }
+    });
+    return best;
+  }
+  /* ------------------------------ render ------------------------------ */
+  render(g) {
+    g.fillStyle = "#e8f4f8";
+    g.fillRect(0, 0, this.w, this.h);
+    for (const zone of this.zones) inZone(g, zone, (gg) => this.renderHalf(gg, zone));
+    drawDivider(g, this.w, this.h);
+    if (this.env.mode === "1p") drawAiChip(g, this.w);
+  }
+  renderHalf(g, zone) {
+    const i = zone.index;
+    const bins = this.binRects(zone);
+    if (this.flash[i] > 0) {
+      g.fillStyle = `rgba(232,69,60,${this.flash[i] * 0.35})`;
+      g.fillRect(0, 0, zone.w, zone.h);
+    }
+    for (const bin of bins) {
+      const c = PALETTE[bin.colour];
+      fillRR(g, bin.x, bin.y + 5, bin.w, bin.h, 16, c.dark);
+      fillRR(g, bin.x, bin.y, bin.w, bin.h, 16, c.hex);
+      shapeGlyph(
+        g,
+        c.shape,
+        bin.x + bin.w / 2,
+        bin.y + bin.h / 2,
+        Math.min(bin.w, bin.h) * 0.3,
+        "rgba(255,255,255,0.9)"
+      );
+    }
+    for (const b of this.bubbles[i]) {
+      const c = PALETTE[b.colour];
+      let { x, y } = b;
+      let scale = 1;
+      if (b.flying) {
+        const t = Math.min(1, b.flyT);
+        x = b.x + (b.flying.x - b.x) * t;
+        y = b.y + (b.flying.y - b.y) * t;
+        scale = 1 - t * 0.85;
+        g.globalAlpha = 1 - t * 0.5;
+      } else {
+        x += Math.sin(b.wobble) * 3;
+      }
+      const r = b.r * scale;
+      fillCircle(g, x, y + r * 0.18, r, "rgba(32,49,58,0.1)");
+      fillCircle(g, x, y, r, c.hex);
+      fillCircle(g, x - r * 0.3, y - r * 0.34, r * 0.26, "rgba(255,255,255,0.5)");
+      shapeGlyph(g, c.shape, x, y, r * 0.44, "rgba(255,255,255,0.92)");
+      g.globalAlpha = 1;
+      if (b.held) {
+        g.beginPath();
+        g.arc(x, y, r + 7, 0, Math.PI * 2);
+        g.strokeStyle = "rgba(32,49,58,0.35)";
+        g.lineWidth = 3;
+        g.stroke();
+      }
+    }
+    const hudY = bins[0].y - 20;
+    if (this.env.mode === "1p" && zone.index === 1) return;
+    text(g, String(this.scores[i]), 22, hudY, 26, { fill: PLAYER[i].dark, align: "left" });
+    text(
+      g,
+      String(Math.ceil(Math.max(0, this.timeLeft))),
+      zone.w - 22,
+      hudY,
+      20,
+      { fill: "#5b7480", align: "right" }
+    );
+  }
+};
+
+// src/games/rope-rumble.js
+var AI6 = [
+  { rate: 3.2, accuracy: 0.7 },
+  { rate: 4.5, accuracy: 0.88 },
+  { rate: 5.8, accuracy: 0.97 }
+];
+var PULL = 0.035;
+var SLIP = 0.018;
+var STALL = 0.45;
+var DARK_BEAT = 0.11;
+var RopeRumble = class extends MiniGame {
+  static meta = {
+    id: "rope-rumble",
+    title: "Rope Rumble",
+    category: "Dexterity",
+    verb: "fast tap",
+    layout: "duel",
+    seconds: 45,
+    tint: "#f2802e",
+    mascot: "bear"
+  };
+  static icon(g, s) {
+    g.fillStyle = "#fdf3e6";
+    g.fillRect(0, 0, s, s);
+    g.strokeStyle = "#c9a06a";
+    g.lineWidth = s * 0.07;
+    g.lineCap = "round";
+    g.beginPath();
+    g.moveTo(s * 0.5, s * 0.12);
+    g.lineTo(s * 0.5, s * 0.88);
+    g.stroke();
+    fillCircle(g, s * 0.5, s * 0.56, s * 0.11, "#f2802e");
+    drawAnimal(g, "bear", s * 0.22, s * 0.78, s * 0.15);
+    g.save();
+    g.translate(s * 0.78, s * 0.22);
+    g.rotate(Math.PI);
+    drawAnimal(g, "panda", 0, 0, s * 0.15);
+    g.restore();
+  }
+  constructor(env) {
+    super(env);
+    this.zones = duelZones(this.w, this.h);
+    this.pos = 0;
+    this.lit = [0, 0];
+    this.beat = [0, 0];
+    this.stall = [0, 0];
+    this.pulse = [0, 0];
+    this.taps = [0, 0];
+    this.aiSpec = byTier(AI6, env.difficulty);
+    this.aiTimer = 0;
+    this.newBeat(0);
+    this.newBeat(1);
+  }
+  resize(w, h) {
+    super.resize(w, h);
+    this.zones = duelZones(w, h);
+  }
+  newBeat(player) {
+    this.beat[player] = this.env.rng.range(0.55, 1);
+    this.lit[player] = this.env.rng.chance(DARK_BEAT) ? -1 : this.env.rng.int(0, 1);
+    if (player === 1 && this.env.mode === "1p") {
+      this.aiTimer = this.env.rng.range(0.12, 0.3);
+    }
+  }
+  /* ------------------------------- loop ------------------------------- */
+  update(dt) {
+    if (this.over) return;
+    this.timeLeft -= dt;
+    if (this.timeLeft <= 0) return this.finish();
+    for (let i = 0; i < 2; i++) {
+      if (this.stall[i] > 0) this.stall[i] -= dt;
+      if (this.pulse[i] > 0) this.pulse[i] -= dt;
+      this.beat[i] -= dt;
+      if (this.beat[i] <= 0) this.newBeat(i);
+    }
+    if (this.env.mode === "1p") this.updateAi(dt);
+    if (Math.abs(this.pos) >= 1) this.finish();
+  }
+  updateAi(dt) {
+    if (this.stall[1] > 0) return;
+    this.aiTimer -= dt;
+    if (this.aiTimer > 0) return;
+    this.aiTimer = 1 / this.aiSpec.rate * this.env.rng.range(0.8, 1.2);
+    const lit = this.lit[1];
+    if (this.env.rng.chance(this.aiSpec.accuracy)) {
+      if (lit >= 0) this.tap(1, lit);
+    } else {
+      this.tap(1, this.env.rng.int(0, 1));
+    }
+  }
+  /** @param {0|1} player @param {number} paw */
+  tap(player, paw) {
+    if (this.over || this.stall[player] > 0) return;
+    const dir = player === 0 ? 1 : -1;
+    if (this.lit[player] === paw) {
+      this.pos += PULL * dir;
+      this.taps[player] += 1;
+      this.pulse[player] = 0.16;
+      this.newBeat(player);
+      if (player === 0 || this.env.mode === "2p") this.env.sfx.tick();
+    } else {
+      this.pos -= SLIP * dir;
+      this.stall[player] = STALL;
+      if (player === 0 || this.env.mode === "2p") this.env.sfx.bad();
+    }
+    this.pos = Math.max(-1, Math.min(1, this.pos));
+  }
+  finish() {
+    const scores = [
+      Math.max(0, Math.round(this.pos * 20)),
+      Math.max(0, Math.round(-this.pos * 20))
+    ];
+    this.end({
+      scores,
+      winner: this.pos === 0 ? null : this.pos > 0 ? 0 : 1,
+      stars: this.pos >= 1 ? 3 : this.pos > 0.35 ? 2 : this.pos > 0 ? 1 : 0
+    });
+  }
+  /* ------------------------------ layout ------------------------------ */
+  paws(zone) {
+    const r = Math.min(zone.h * 0.3, zone.w * 0.15, 96);
+    const gap = r + Math.max(34, zone.w * 0.045);
+    const cy = zone.h * 0.58;
+    return [
+      { cx: zone.w / 2 - gap, cy, r },
+      { cx: zone.w / 2 + gap, cy, r }
+    ];
+  }
+  pointer(p) {
+    if (p.type !== "down" || this.over) return;
+    const zone = zoneAt(this.zones, p.x, p.y);
+    if (!zone) return;
+    if (zone.index === 1 && this.env.mode === "1p") return;
+    const local = toLocal(zone, p.x, p.y);
+    if (!local) return;
+    const paws = this.paws(zone);
+    for (let i = 0; i < paws.length; i++) {
+      const paw = paws[i];
+      if (Math.hypot(local.x - paw.cx, local.y - paw.cy) <= paw.r * 1.25) {
+        this.tap(zone.index, i);
+        return;
+      }
+    }
+  }
+  /* ------------------------------ render ------------------------------ */
+  render(g) {
+    g.fillStyle = "#fdf3e6";
+    g.fillRect(0, 0, this.w, this.h);
+    this.renderRope(g);
+    for (const zone of this.zones) inZone(g, zone, (gg) => this.renderHalf(gg, zone));
+    drawDivider(g, this.w, this.h);
+    this.renderKnot(g);
+    if (this.env.mode === "1p") drawAiChip(g, this.w);
+  }
+  /** The rope runs down the centre; the knot moves toward whoever is winning. */
+  renderRope(g) {
+    const x = this.w / 2;
+    const top = this.h * 0.08;
+    const bottom = this.h * 0.92;
+    g.strokeStyle = "#e0cdb0";
+    g.lineWidth = 26;
+    g.lineCap = "round";
+    g.beginPath();
+    g.moveTo(x, top);
+    g.lineTo(x, bottom);
+    g.stroke();
+    g.strokeStyle = "#c9a06a";
+    g.lineWidth = 5;
+    for (let y = top; y < bottom; y += 22) {
+      g.beginPath();
+      g.moveTo(x - 12, y);
+      g.lineTo(x + 12, y + 11);
+      g.stroke();
+    }
+    for (const s of [-1, 1]) {
+      const y = this.h / 2 + s * this.h * 0.38;
+      g.strokeStyle = PLAYER[s > 0 ? 0 : 1].hex;
+      g.lineWidth = 5;
+      g.beginPath();
+      g.moveTo(x - 46, y);
+      g.lineTo(x + 46, y);
+      g.stroke();
+    }
+  }
+  renderKnot(g) {
+    const x = this.w / 2;
+    const y = this.h / 2 + this.pos * this.h * 0.38;
+    const leader = this.pos === 0 ? null : this.pos > 0 ? 0 : 1;
+    fillCircle(g, x, y + 4, 25, "rgba(32,49,58,0.18)");
+    fillCircle(g, x, y, 25, leader === null ? "#f2c14e" : PLAYER[leader].hex);
+    fillCircle(g, x, y, 25, "rgba(255,255,255,0)");
+    g.strokeStyle = "#ffffff";
+    g.lineWidth = 5;
+    g.beginPath();
+    g.arc(x, y, 15, 0, Math.PI * 2);
+    g.stroke();
+  }
+  renderHalf(g, zone) {
+    const i = zone.index;
+    const paws = this.paws(zone);
+    const stalled = this.stall[i] > 0;
+    paws.forEach((paw, index) => {
+      const isLit = this.lit[i] === index && !stalled;
+      let colour = "#d9cfc0";
+      if (stalled) colour = "#b7b0a5";
+      else if (isLit) colour = PLAYER[i].hex;
+      if (isLit) {
+        fillCircle(g, paw.cx, paw.cy, paw.r * 1.28, `${PLAYER[i].hex}33`);
+      }
+      const squash = this.pulse[i] > 0 && isLit ? 0.94 : 1;
+      g.save();
+      g.translate(paw.cx, paw.cy);
+      g.scale(squash, squash);
+      bigButton(g, 0, 0, paw.r, colour, stalled);
+      drawAnimal(g, i === 0 ? "bear" : "panda", 0, 0, paw.r * 0.5, { sad: stalled });
+      g.restore();
+    });
+    if (stalled) {
+      g.fillStyle = "rgba(32,49,58,0.1)";
+      g.fillRect(0, 0, zone.w, zone.h);
+    }
+    const hudY = zone.h - 22;
+    if (this.env.mode === "1p" && zone.index === 1) return;
+    text(g, String(this.taps[i]), 22, hudY, 22, { fill: PLAYER[i].dark, align: "left" });
+    text(
+      g,
+      String(Math.ceil(Math.max(0, this.timeLeft))),
+      zone.w - 22,
+      hudY,
+      20,
+      { fill: "#5b7480", align: "right" }
+    );
+  }
+};
+
+// src/games/treasure-reef.js
+var SIZE = 6;
+var CHESTS = [4, 3, 2];
+var NONE = 0;
+var MISS = 1;
+var HIT = 2;
+var TreasureReef = class extends MiniGame {
+  static meta = {
+    id: "treasure-reef",
+    title: "Treasure Reef",
+    category: "Hidden treasure",
+    verb: "tap",
+    layout: "shared",
+    seconds: 120,
+    tint: "#2b7fd4",
+    mascot: "penguin"
+  };
+  static icon(g, s) {
+    g.fillStyle = "#dceff8";
+    g.fillRect(0, 0, s, s);
+    const cell = s / 4;
+    g.strokeStyle = "rgba(43,127,212,0.35)";
+    g.lineWidth = 2;
+    for (let i = 1; i < 4; i++) {
+      g.beginPath();
+      g.moveTo(i * cell, 0);
+      g.lineTo(i * cell, s);
+      g.moveTo(0, i * cell);
+      g.lineTo(s, i * cell);
+      g.stroke();
+    }
+    fillRR(g, cell * 0.2, cell * 1.2, cell * 2.6, cell * 0.6, cell * 0.18, "#a9743f");
+    fillRR(g, cell * 0.2, cell * 1.2, cell * 2.6, cell * 0.24, cell * 0.1, "#f2c14e");
+    star(g, cell * 3.3, cell * 0.8, cell * 0.3);
+    g.fillStyle = "#f2c14e";
+    g.fill();
+    fillCircle(g, cell * 1.2, cell * 3, cell * 0.16, "#2b7fd4");
+  }
+  constructor(env) {
+    super(env);
+    this.timeLeft = -1;
+    this.reefs = [makeReef(env.rng), makeReef(env.rng)];
+    this.shots = [newShots(), newShots()];
+    this.turn = 0;
+    this.phase = "place";
+    this.placer = 0;
+    this.splash = null;
+    this.thinker = new Thinker(env.rng, [0.7, 1.3]);
+    this.aiTier = env.difficulty;
+    this.aiHunt = [];
+    if (env.mode === "1p") {
+      this.reefs[1] = makeReef(env.rng);
+    }
+  }
+  get isAiTurn() {
+    return this.env.mode === "1p" && this.turn === 1 && this.phase === "play";
+  }
+  /* ------------------------------- loop ------------------------------- */
+  update(dt) {
+    if (this.over) return;
+    if (this.splash) {
+      this.splash.t += dt * 2.2;
+      if (this.splash.t >= 1) this.splash = null;
+    }
+    if (this.isAiTurn && !this.thinker.busy && !this.splash) {
+      this.thinker.schedule(() => this.dig(this.aiPick()));
+    }
+    this.thinker.update(dt);
+  }
+  /* ------------------------------ placing ----------------------------- */
+  shuffle() {
+    this.reefs[this.placer] = makeReef(this.env.rng);
+    this.env.sfx.tap();
+  }
+  confirmPlacement() {
+    this.env.sfx.select();
+    if (this.env.mode === "2p" && this.placer === 0) {
+      this.placer = 1;
+      this.phase = "handover";
+    } else {
+      this.phase = "play";
+    }
+  }
+  /* ------------------------------- digging ---------------------------- */
+  dig(cell) {
+    if (this.over || cell < 0 || this.phase !== "play") return;
+    const target = 1 - this.turn;
+    const shots = this.shots[target];
+    if (shots[cell] !== NONE) return;
+    const isHit = this.reefs[target].occupied[cell] >= 0;
+    shots[cell] = isHit ? HIT : MISS;
+    this.splash = { cell, hit: isHit, t: 0, target };
+    this.env.sfx[isHit ? "sparkle" : "splash"]();
+    if (isHit) {
+      if (this.turn === 1 && this.env.mode === "1p") this.queueHunt(cell, shots);
+      const chestIndex = this.reefs[target].occupied[cell];
+      if (isSunk(this.reefs[target], shots, chestIndex)) {
+        this.env.sfx.win();
+        if (this.aiHunt.length) this.aiHunt = [];
+      }
+      if (allSunk(this.reefs[target], shots)) return this.finish();
+      return;
+    }
+    this.turn = 1 - this.turn;
+  }
+  finish() {
+    const remaining = [0, 1].map((p) => CHESTS.length - countSunk(this.reefs[p], this.shots[p]));
+    this.end({
+      scores: [remaining[0], remaining[1]],
+      winner: this.turn,
+      stars: this.turn === 0 ? remaining[0] === 3 ? 3 : remaining[0] === 2 ? 2 : 1 : 0
+    });
+  }
+  /* -------------------------------- AI -------------------------------- */
+  queueHunt(cell, shots) {
+    for (const nb of neighbours(cell)) {
+      if (shots[nb] === NONE && !this.aiHunt.includes(nb)) this.aiHunt.push(nb);
+    }
+  }
+  aiPick() {
+    const shots = this.shots[0];
+    const open = [];
+    for (let i = 0; i < SIZE * SIZE; i++) if (shots[i] === NONE) open.push(i);
+    if (!open.length) return -1;
+    if (this.aiTier === 0) {
+      this.aiHunt = this.aiHunt.filter((c) => shots[c] === NONE);
+      if (this.aiHunt.length && this.env.rng.chance(0.5)) {
+        return this.aiHunt.shift();
+      }
+      return this.env.rng.pick(open);
+    }
+    if (this.aiTier === 1) {
+      const axis = this.axisCandidates(shots);
+      if (axis.length) return this.env.rng.pick(axis);
+      this.aiHunt = this.aiHunt.filter((c) => shots[c] === NONE);
+      if (this.aiHunt.length) return this.aiHunt.shift();
+      const parity = open.filter((c) => (c % SIZE + Math.floor(c / SIZE)) % 2 === 0);
+      return this.env.rng.pick(parity.length ? parity : open);
+    }
+    const heat = heatmap(shots, this.reefs[0]);
+    let best = open[0];
+    let bestScore = -1;
+    for (const c of open) {
+      if (heat[c] > bestScore) {
+        bestScore = heat[c];
+        best = c;
+      }
+    }
+    return bestScore > 0 ? best : this.env.rng.pick(open);
+  }
+  /** Hits in a line point at the rest of the chest. */
+  axisCandidates(shots) {
+    const out = [];
+    for (let i = 0; i < SIZE * SIZE; i++) {
+      if (shots[i] !== HIT) continue;
+      const r = Math.floor(i / SIZE);
+      const c = i % SIZE;
+      if (c + 1 < SIZE && shots[i + 1] === HIT) {
+        if (c - 1 >= 0 && shots[i - 1] === NONE) out.push(i - 1);
+        let end = c + 1;
+        while (end + 1 < SIZE && shots[r * SIZE + end + 1] === HIT) end++;
+        if (end + 1 < SIZE && shots[r * SIZE + end + 1] === NONE) out.push(r * SIZE + end + 1);
+      }
+      if (r + 1 < SIZE && shots[i + SIZE] === HIT) {
+        if (r - 1 >= 0 && shots[i - SIZE] === NONE) out.push(i - SIZE);
+        let end = r + 1;
+        while (end + 1 < SIZE && shots[(end + 1) * SIZE + c] === HIT) end++;
+        if (end + 1 < SIZE && shots[(end + 1) * SIZE + c] === NONE) out.push((end + 1) * SIZE + c);
+      }
+    }
+    return out;
+  }
+  /* ------------------------------ layout ------------------------------ */
+  geom() {
+    const stripH = Math.min(84, this.h * 0.13);
+    const avail = Math.min(this.w - 32, this.h - stripH - 90);
+    const cell = Math.floor(avail / SIZE);
+    const size = cell * SIZE;
+    return { cell, size, ox: (this.w - size) / 2, oy: 62, stripH };
+  }
+  cellAt(px, py, G) {
+    const c = Math.floor((px - G.ox) / G.cell);
+    const r = Math.floor((py - G.oy) / G.cell);
+    if (c < 0 || r < 0 || c >= SIZE || r >= SIZE) return -1;
+    return r * SIZE + c;
+  }
+  buttons(G) {
+    const y = G.oy + G.size + 18;
+    const w = Math.min(160, this.w * 0.34);
+    return {
+      shuffle: { x: this.w / 2 - w - 10, y, w, h: 68 },
+      accept: { x: this.w / 2 + 10, y, w, h: 68 }
+    };
+  }
+  /* ------------------------------ input ------------------------------- */
+  pointer(p) {
+    if (p.type !== "down" || this.over) return;
+    const G = this.geom();
+    if (this.phase === "handover") {
+      this.phase = "place";
+      this.env.sfx.tap();
+      return;
+    }
+    if (this.phase === "place") {
+      const b = this.buttons(G);
+      if (inRect(p, b.shuffle)) return this.shuffle();
+      if (inRect(p, b.accept)) return this.confirmPlacement();
+      return;
+    }
+    if (this.isAiTurn || this.splash) return;
+    this.dig(this.cellAt(p.x, p.y, G));
+  }
+  /* ------------------------------ render ------------------------------ */
+  render(g) {
+    g.fillStyle = "#e5f2f8";
+    g.fillRect(0, 0, this.w, this.h);
+    const G = this.geom();
+    if (this.phase === "handover") return this.renderHandover(g);
+    if (this.phase === "place") return this.renderPlacing(g, G);
+    this.renderPlaying(g, G);
+  }
+  renderWater(g, G) {
+    fillRR(g, G.ox - 8, G.oy - 8, G.size + 16, G.size + 16, 18, "#bfe1f0");
+    for (let r = 0; r < SIZE; r++) {
+      for (let c = 0; c < SIZE; c++) {
+        const x = G.ox + c * G.cell;
+        const y = G.oy + r * G.cell;
+        fillRR(
+          g,
+          x + 2,
+          y + 2,
+          G.cell - 4,
+          G.cell - 4,
+          G.cell * 0.16,
+          (r + c) % 2 ? "#d5ecf6" : "#e6f5fb"
+        );
+      }
+    }
+  }
+  renderPlacing(g, G) {
+    this.renderWater(g, G);
+    const reef = this.reefs[this.placer];
+    reef.chests.forEach((chest) => {
+      const first = chest[0];
+      const last = chest[chest.length - 1];
+      const x = G.ox + first % SIZE * G.cell + 5;
+      const y = G.oy + Math.floor(first / SIZE) * G.cell + 5;
+      const w = (last % SIZE - first % SIZE + 1) * G.cell - 10;
+      const h = (Math.floor(last / SIZE) - Math.floor(first / SIZE) + 1) * G.cell - 10;
+      fillRR(g, x, y, w, h, G.cell * 0.2, "#a9743f");
+      fillRR(g, x, y, w, Math.min(h, G.cell * 0.34), G.cell * 0.14, "#f2c14e");
+      fillCircle(g, x + w / 2, y + h / 2, G.cell * 0.13, "#f2c14e");
+    });
+    const who = this.env.mode === "2p" ? `Player ${this.placer + 1}` : "Your reef";
+    text(g, who, this.w / 2, 32, 24, { fill: PLAYER[this.placer].dark });
+    const b = this.buttons(G);
+    fillRR(g, b.shuffle.x, b.shuffle.y, b.shuffle.w, b.shuffle.h, 20, "#ffffff");
+    rr(g, b.shuffle.x, b.shuffle.y, b.shuffle.w, b.shuffle.h, 20);
+    g.strokeStyle = "#20313a";
+    g.lineWidth = 3;
+    g.stroke();
+    text(
+      g,
+      "\u21BB",
+      b.shuffle.x + b.shuffle.w / 2,
+      b.shuffle.y + b.shuffle.h / 2,
+      32,
+      { fill: "#20313a" }
+    );
+    fillRR(g, b.accept.x, b.accept.y, b.accept.w, b.accept.h, 20, "#5cb85c");
+    text(
+      g,
+      "\u2713",
+      b.accept.x + b.accept.w / 2,
+      b.accept.y + b.accept.h / 2,
+      34,
+      { fill: "#ffffff", outlineColor: "rgba(0,0,0,0.15)" }
+    );
+  }
+  renderHandover(g) {
+    g.fillStyle = "#20313a";
+    g.fillRect(0, 0, this.w, this.h);
+    drawAnimal(g, "penguin", this.w / 2, this.h * 0.4, Math.min(this.w, this.h) * 0.14);
+    text(
+      g,
+      "Pass the tablet to Player 2",
+      this.w / 2,
+      this.h * 0.62,
+      24,
+      { fill: "#ffffff", outline: false }
+    );
+    text(
+      g,
+      "then tap anywhere",
+      this.w / 2,
+      this.h * 0.62 + 34,
+      17,
+      { fill: "#9fb0bd", outline: false }
+    );
+  }
+  renderPlaying(g, G) {
+    const target = 1 - this.turn;
+    const shots = this.shots[target];
+    this.renderWater(g, G);
+    for (let i = 0; i < SIZE * SIZE; i++) {
+      const x = G.ox + i % SIZE * G.cell + G.cell / 2;
+      const y = G.oy + Math.floor(i / SIZE) * G.cell + G.cell / 2;
+      if (shots[i] === MISS) {
+        fillCircle(g, x, y, G.cell * 0.16, "#8fb4c4");
+      } else if (shots[i] === HIT) {
+        const sunkChest = this.reefs[target].occupied[i];
+        const sunk = isSunk(this.reefs[target], shots, sunkChest);
+        star(g, x, y, G.cell * 0.3);
+        g.fillStyle = sunk ? "#f2802e" : "#f2c14e";
+        g.fill();
+        g.strokeStyle = "#b8760f";
+        g.lineWidth = 2;
+        g.stroke();
+      }
+    }
+    if (this.splash && this.splash.target === target) {
+      const i = this.splash.cell;
+      const x = G.ox + i % SIZE * G.cell + G.cell / 2;
+      const y = G.oy + Math.floor(i / SIZE) * G.cell + G.cell / 2;
+      g.globalAlpha = 1 - this.splash.t;
+      g.beginPath();
+      g.arc(x, y, G.cell * (0.2 + this.splash.t * 0.7), 0, Math.PI * 2);
+      g.strokeStyle = this.splash.hit ? "#f2c14e" : "#4aa3c7";
+      g.lineWidth = 6;
+      g.stroke();
+      g.globalAlpha = 1;
+    }
+    const label = this.isAiTurn ? "Digging..." : `Player ${this.turn + 1}, dig here`;
+    drawAnimal(g, this.turn === 0 ? "penguin" : "owl", 96, 32, 20);
+    text(g, label, 124, 32, 20, { fill: PLAYER[this.turn].dark, align: "left" });
+    this.renderChestStrip(g, G);
+  }
+  /** Three chest icons per player: how many are still afloat. */
+  renderChestStrip(g, G) {
+    const y = this.h - G.stripH;
+    for (const p of [0, 1]) {
+      const sunk = countSunk(this.reefs[p], this.shots[p]);
+      const cx = p === 0 ? 20 : this.w / 2 + 20;
+      drawAnimal(g, p === 0 ? "penguin" : "owl", cx + 18, y + G.stripH / 2, 18);
+      for (let i = 0; i < CHESTS.length; i++) {
+        const x = cx + 46 + i * 40;
+        const alive = i >= sunk;
+        fillRR(g, x, y + G.stripH / 2 - 13, 32, 26, 8, alive ? "#a9743f" : "rgba(32,49,58,0.13)");
+        if (alive) fillRR(g, x, y + G.stripH / 2 - 13, 32, 9, 5, "#f2c14e");
+      }
+    }
+  }
+};
+function newShots() {
+  return new Uint8Array(SIZE * SIZE);
+}
+function makeReef(rng) {
+  for (let attempt = 0; attempt < 200; attempt++) {
+    const occupied2 = new Int8Array(SIZE * SIZE).fill(-1);
+    const chests2 = [];
+    let ok = true;
+    for (let ci = 0; ci < CHESTS.length; ci++) {
+      const placed = tryPlace(rng, occupied2, CHESTS[ci], ci);
+      if (!placed) {
+        ok = false;
+        break;
+      }
+      chests2.push(placed);
+    }
+    if (ok) return { occupied: occupied2, chests: chests2 };
+  }
+  const occupied = new Int8Array(SIZE * SIZE).fill(-1);
+  const chests = CHESTS.map((len, ci) => {
+    const cells = [];
+    for (let i = 0; i < len; i++) {
+      const idx = ci * 2 * SIZE + i;
+      cells.push(idx);
+      occupied[idx] = ci;
+    }
+    return cells;
+  });
+  return { occupied, chests };
+}
+function tryPlace(rng, occupied, len, index) {
+  for (let attempt = 0; attempt < 80; attempt++) {
+    const horizontal = rng.chance(0.5);
+    const r = rng.int(0, horizontal ? SIZE - 1 : SIZE - len);
+    const c = rng.int(0, horizontal ? SIZE - len : SIZE - 1);
+    const cells = [];
+    for (let i = 0; i < len; i++) {
+      cells.push(horizontal ? r * SIZE + c + i : (r + i) * SIZE + c);
+    }
+    if (cells.some((i) => occupied[i] >= 0)) continue;
+    for (const i of cells) occupied[i] = index;
+    return cells;
+  }
+  return null;
+}
+function isSunk(reef, shots, chestIndex) {
+  if (chestIndex < 0) return false;
+  return reef.chests[chestIndex].every((i) => shots[i] === HIT);
+}
+function countSunk(reef, shots) {
+  return reef.chests.filter((_, i) => isSunk(reef, shots, i)).length;
+}
+function allSunk(reef, shots) {
+  return countSunk(reef, shots) === reef.chests.length;
+}
+function neighbours(cell) {
+  const r = Math.floor(cell / SIZE);
+  const c = cell % SIZE;
+  const out = [];
+  if (r > 0) out.push(cell - SIZE);
+  if (r < SIZE - 1) out.push(cell + SIZE);
+  if (c > 0) out.push(cell - 1);
+  if (c < SIZE - 1) out.push(cell + 1);
+  return out;
+}
+function inRect(p, r) {
+  return p.x >= r.x && p.x <= r.x + r.w && p.y >= r.y && p.y <= r.y + r.h;
+}
+function heatmap(shots, reef) {
+  const heat = new Float64Array(SIZE * SIZE);
+  const liveHits = [];
+  for (let i = 0; i < shots.length; i++) {
+    if (shots[i] === HIT && !isSunk(reef, shots, reef.occupied[i])) liveHits.push(i);
+  }
+  const remaining = CHESTS.filter((_, ci) => !isSunk(reef, shots, ci));
+  for (const len of remaining) {
+    for (let r = 0; r < SIZE; r++) {
+      for (let c = 0; c < SIZE; c++) {
+        for (const horizontal of [true, false]) {
+          if (horizontal && c + len > SIZE) continue;
+          if (!horizontal && r + len > SIZE) continue;
+          const cells = [];
+          for (let i = 0; i < len; i++) {
+            cells.push(horizontal ? r * SIZE + c + i : (r + i) * SIZE + c);
+          }
+          if (cells.some((i) => shots[i] === MISS)) continue;
+          if (cells.some((i) => shots[i] === HIT && !liveHits.includes(i))) continue;
+          const covers = liveHits.length === 0 || cells.some((i) => liveHits.includes(i));
+          if (!covers) continue;
+          const weight = liveHits.length ? 4 : 1;
+          for (const i of cells) if (shots[i] === NONE) heat[i] += weight;
+        }
+      }
+    }
+  }
+  return heat;
+}
+
+// src/games/ice-cracker.js
+var COLS = 6;
+var ROWS = 5;
+var TOTAL = COLS * ROWS;
+var CRACKED = 3;
+var MAX_PER_TURN = 3;
+var THRESHOLD = [null, 0.72, 0.72];
+var IceCracker = class extends MiniGame {
+  static meta = {
+    id: "ice-cracker",
+    title: "Ice Cracker",
+    category: "Push your luck",
+    verb: "tap",
+    layout: "shared",
+    seconds: 60,
+    tint: "#7fc7e8",
+    mascot: "penguin"
+  };
+  static icon(g, s) {
+    g.fillStyle = "#e4f4fb";
+    g.fillRect(0, 0, s, s);
+    const cw = s / 4;
+    const ch = s / 5;
+    for (let r = 0; r < 3; r++) {
+      for (let c = 0; c < 4; c++) {
+        if (r === 1 && c === 2) continue;
+        fillRR(g, c * cw + 3, s * 0.42 + r * ch + 3, cw - 6, ch - 6, 5, "#bfe6f5");
+      }
+    }
+    drawAnimal(g, "penguin", s * 0.5, s * 0.24, s * 0.17);
+  }
+  constructor(env) {
+    super(env);
+    this.timeLeft = -1;
+    this.blocks = new Array(TOTAL).fill(true);
+    this.cracked = /* @__PURE__ */ new Set();
+    while (this.cracked.size < CRACKED) this.cracked.add(env.rng.int(0, TOTAL - 1));
+    this.scores = [0, 0];
+    this.turn = 0;
+    this.takenThisTurn = 0;
+    this.wobble = 0;
+    this.falling = null;
+    this.thinker = new Thinker(env.rng, [0.6, 1.1]);
+    this.aiPlan = 0;
+  }
+  get isAiTurn() {
+    return this.env.mode === "1p" && this.turn === 1;
+  }
+  get remaining() {
+    return this.blocks.filter(Boolean).length;
+  }
+  /* ------------------------------- loop ------------------------------- */
+  update(dt) {
+    if (this.falling) {
+      this.falling.t += dt;
+      if (this.falling.t > 1.4) this.finishCracked();
+      return;
+    }
+    if (this.over) return;
+    this.wobble += dt * (1.4 + (1 - this.remaining / TOTAL) * 4);
+    if (this.isAiTurn && !this.thinker.busy) {
+      this.thinker.schedule(() => this.aiTurn());
+    }
+    this.thinker.update(dt);
+  }
+  /* ------------------------------- rules ------------------------------ */
+  take(index) {
+    if (this.over || this.falling || !this.blocks[index]) return;
+    this.blocks[index] = false;
+    this.takenThisTurn += 1;
+    this.scores[this.turn] += 1;
+    if (this.cracked.has(index)) {
+      this.env.sfx.crack();
+      this.falling = { t: 0, by: this.turn, index };
+      return;
+    }
+    this.env.sfx.thunk();
+    if (this.remaining === 0) return this.finishEmpty();
+    if (this.takenThisTurn >= MAX_PER_TURN) this.endTurn();
+  }
+  endTurn() {
+    this.takenThisTurn = 0;
+    this.turn = 1 - this.turn;
+    this.thinker.cancel();
+  }
+  finishCracked() {
+    const loser = this.falling.by;
+    this.end({
+      scores: this.scores,
+      winner: (
+        /** @type {0|1} */
+        1 - loser
+      ),
+      stars: loser === 0 ? 0 : 3
+    });
+  }
+  finishEmpty() {
+    const [a, b] = this.scores;
+    this.end({
+      scores: this.scores,
+      winner: a === b ? null : a > b ? 0 : 1,
+      stars: this.starsFor(a, b, 4)
+    });
+  }
+  /* -------------------------------- AI -------------------------------- */
+  aiTurn() {
+    if (this.over || this.falling || !this.isAiTurn) return;
+    const open = [];
+    for (let i = 0; i < TOTAL; i++) if (this.blocks[i]) open.push(i);
+    if (!open.length) return;
+    this.take(this.env.rng.pick(open));
+    if (this.over || this.falling) return;
+    if (this.takenThisTurn >= MAX_PER_TURN) return;
+    if (this.wantsAnother()) this.thinker.schedule(() => this.aiTurn());
+    else this.endTurn();
+  }
+  wantsAnother() {
+    const tier = this.env.difficulty;
+    if (tier === 0) {
+      return this.env.rng.chance(0.45);
+    }
+    const left = this.remaining;
+    if (left <= 0) return false;
+    const safeChance = Math.max(0, (left - CRACKED) / left);
+    let threshold = THRESHOLD[tier];
+    if (tier === 2) {
+      const gap = this.scores[1] - this.scores[0];
+      threshold = Math.max(0.5, Math.min(0.88, 0.72 + gap * 0.045));
+    }
+    return safeChance > threshold;
+  }
+  /* ------------------------------ layout ------------------------------ */
+  geom() {
+    const topSpace = Math.min(this.h * 0.3, 190);
+    const availW = this.w - 40;
+    const availH = this.h - topSpace - 110;
+    const cell = Math.floor(Math.min(availW / COLS, availH / ROWS));
+    const gw = cell * COLS;
+    const gh = cell * ROWS;
+    return { cell, ox: (this.w - gw) / 2, oy: topSpace, gw, gh };
+  }
+  doneButton(G) {
+    const w = Math.min(200, this.w * 0.44);
+    return { x: this.w / 2 - w / 2, y: G.oy + G.gh + 18, w, h: 68 };
+  }
+  /* ------------------------------ input ------------------------------- */
+  pointer(p) {
+    if (p.type !== "down" || this.over || this.falling || this.isAiTurn) return;
+    const G = this.geom();
+    if (this.takenThisTurn > 0) {
+      const b = this.doneButton(G);
+      if (p.x >= b.x && p.x <= b.x + b.w && p.y >= b.y && p.y <= b.y + b.h) {
+        this.env.sfx.select();
+        this.endTurn();
+        return;
+      }
+    }
+    const c = Math.floor((p.x - G.ox) / G.cell);
+    const r = Math.floor((p.y - G.oy) / G.cell);
+    if (c < 0 || r < 0 || c >= COLS || r >= ROWS) return;
+    this.take(r * COLS + c);
+  }
+  /* ------------------------------ render ------------------------------ */
+  render(g) {
+    g.fillStyle = "#e4f4fb";
+    g.fillRect(0, 0, this.w, this.h);
+    const G = this.geom();
+    this.renderPenguin(g, G);
+    for (let i = 0; i < TOTAL; i++) {
+      const r = Math.floor(i / COLS);
+      const c = i % COLS;
+      const x = G.ox + c * G.cell;
+      const y = G.oy + r * G.cell;
+      if (!this.blocks[i]) {
+        fillRR(g, x + 3, y + 3, G.cell - 6, G.cell - 6, G.cell * 0.14, "#8bb6c9");
+        continue;
+      }
+      fillRR(g, x + 3, y + 6, G.cell - 6, G.cell - 6, G.cell * 0.16, "#9ecfe4");
+      fillRR(g, x + 3, y + 3, G.cell - 6, G.cell - 6, G.cell * 0.16, "#d9f0fa");
+      g.globalAlpha = 0.55;
+      fillRR(
+        g,
+        x + G.cell * 0.16,
+        y + G.cell * 0.16,
+        G.cell * 0.3,
+        G.cell * 0.12,
+        G.cell * 0.06,
+        "#ffffff"
+      );
+      g.globalAlpha = 1;
+    }
+    this.renderHud(g, G);
+  }
+  renderPenguin(g, G) {
+    const cx = this.w / 2;
+    const baseY = G.oy - Math.min(this.h * 0.1, 62);
+    const r = Math.min(this.w, this.h) * 0.085;
+    if (this.falling) {
+      const t = Math.min(1, this.falling.t / 1.2);
+      const y = baseY + easeOut(t) * (this.h - baseY + r * 2);
+      g.save();
+      g.translate(cx, y);
+      g.rotate(t * 7);
+      drawAnimal(g, "penguin", 0, 0, r, { sad: true });
+      g.restore();
+      return;
+    }
+    const sway = Math.sin(this.wobble) * (1 - this.remaining / TOTAL) * r * 0.5;
+    drawAnimal(g, "penguin", cx + sway, baseY, r, { tilt: sway * 0.012 });
+  }
+  renderHud(g, G) {
+    for (const p of [0, 1]) {
+      const x = p === 0 ? 84 : this.w - 22;
+      const align = p === 0 ? "left" : "right";
+      const active = p === this.turn && !this.falling && !this.over;
+      g.globalAlpha = active ? 1 : 0.45;
+      drawAnimal(
+        g,
+        p === 0 ? "penguin" : "owl",
+        p === 0 ? x + 18 : x - 18,
+        30,
+        18,
+        { blink: !active }
+      );
+      text(
+        g,
+        String(this.scores[p]),
+        p === 0 ? x + 46 : x - 46,
+        30,
+        26,
+        { fill: PLAYER[p].dark, align }
+      );
+      g.globalAlpha = 1;
+    }
+    const pipY = 30;
+    for (let i = 0; i < MAX_PER_TURN; i++) {
+      fillCircle(
+        g,
+        this.w / 2 - 26 + i * 26,
+        pipY,
+        9,
+        i < this.takenThisTurn ? PLAYER[this.turn].hex : "rgba(32,49,58,0.14)"
+      );
+    }
+    if (this.takenThisTurn > 0 && !this.isAiTurn && !this.falling && !this.over) {
+      const b = this.doneButton(G);
+      fillRR(g, b.x, b.y + 4, b.w, b.h, 22, "#2f7a35");
+      fillRR(g, b.x, b.y, b.w, b.h, 22, "#5cb85c");
+      text(
+        g,
+        "\u2713  Stop",
+        b.x + b.w / 2,
+        b.y + b.h / 2,
+        26,
+        { fill: "#ffffff", outlineColor: "rgba(0,0,0,0.18)" }
+      );
+    }
+    if (this.isAiTurn && !this.falling) {
+      text(g, "AI is choosing...", this.w / 2, this.h - 26, 18, { fill: "#5b7480" });
+    }
+  }
+};
+
+// src/games/loop-the-line.js
+var GRID = 5;
+var CELLS = GRID * GRID;
+var PAR_PER_CELL = 0.5;
+var AI_PACE = [2.5, 1.3, 0.85];
+var LoopTheLine = class extends MiniGame {
+  static meta = {
+    id: "loop-the-line",
+    title: "Loop the Line",
+    category: "Puzzle race",
+    verb: "trace",
+    layout: "duel",
+    seconds: 90,
+    tint: "#a33268",
+    mascot: "cat"
+  };
+  static icon(g, s) {
+    g.fillStyle = "#fdeef4";
+    g.fillRect(0, 0, s, s);
+    const cell = s / 4;
+    g.lineCap = "round";
+    g.lineJoin = "round";
+    g.lineWidth = cell * 0.42;
+    g.strokeStyle = PALETTE[0].hex;
+    g.beginPath();
+    g.moveTo(cell * 0.5, cell * 0.5);
+    g.lineTo(cell * 0.5, cell * 2.5);
+    g.lineTo(cell * 2.5, cell * 2.5);
+    g.stroke();
+    g.strokeStyle = PALETTE[3].hex;
+    g.beginPath();
+    g.moveTo(cell * 1.5, cell * 0.5);
+    g.lineTo(cell * 3.5, cell * 0.5);
+    g.lineTo(cell * 3.5, cell * 3.5);
+    g.stroke();
+    fillCircle(g, cell * 0.5, cell * 0.5, cell * 0.28, PALETTE[0].dark);
+    fillCircle(g, cell * 2.5, cell * 2.5, cell * 0.28, PALETTE[0].dark);
+    fillCircle(g, cell * 1.5, cell * 0.5, cell * 0.28, PALETTE[3].dark);
+    fillCircle(g, cell * 3.5, cell * 3.5, cell * 0.28, PALETTE[3].dark);
+  }
+  constructor(env) {
+    super(env);
+    this.zones = duelZones(this.w, this.h);
+    this.puzzle = generatePuzzle(env.rng);
+    this.animals = env.rng.shuffle(ANIMAL_IDS.slice()).slice(0, this.puzzle.paths.length);
+    this.drawn = [/* @__PURE__ */ new Map(), /* @__PURE__ */ new Map()];
+    this.drags = /* @__PURE__ */ new Map();
+    this.par = CELLS * PAR_PER_CELL;
+    this.aiStep = this.par * byTier(AI_PACE, env.difficulty) / CELLS;
+    this.aiTimer = this.aiStep;
+    this.aiPathIndex = 0;
+    this.aiCellIndex = 0;
+  }
+  resize(w, h) {
+    super.resize(w, h);
+    this.zones = duelZones(w, h);
+  }
+  /* ------------------------------- loop ------------------------------- */
+  update(dt) {
+    if (this.over) return;
+    this.timeLeft -= dt;
+    if (this.timeLeft <= 0) return this.finish();
+    if (this.env.mode === "1p") this.updateAi(dt);
+    for (const p of [0, 1]) {
+      if (this.solvedCount(p) === this.puzzle.paths.length) return this.finish();
+    }
+  }
+  /** The opponent lays one more cell of its solution every aiStep seconds. */
+  updateAi(dt) {
+    if (this.aiPathIndex >= this.puzzle.paths.length) return;
+    this.aiTimer -= dt;
+    if (this.aiTimer > 0) return;
+    this.aiTimer = this.aiStep;
+    const path = this.puzzle.paths[this.aiPathIndex];
+    this.aiCellIndex += 1;
+    const drawn = path.slice(0, this.aiCellIndex + 1);
+    this.drawn[1].set(this.aiPathIndex, drawn);
+    if (this.aiCellIndex >= path.length - 1) {
+      this.env.sfx.tick();
+      this.aiPathIndex += 1;
+      this.aiCellIndex = 0;
+    }
+  }
+  solvedCount(player) {
+    let n = 0;
+    for (let c = 0; c < this.puzzle.paths.length; c++) {
+      if (this.isSolved(player, c)) n++;
+    }
+    return n;
+  }
+  isSolved(player, colour) {
+    const drawn = this.drawn[player].get(colour);
+    if (!drawn || drawn.length < 2) return false;
+    const ends = this.puzzle.terminals[colour];
+    const first = drawn[0];
+    const last = drawn[drawn.length - 1];
+    return first === ends[0] && last === ends[1] || first === ends[1] && last === ends[0];
+  }
+  finish() {
+    const scores = [this.solvedCount(0), this.solvedCount(1)];
+    const total = this.puzzle.paths.length;
+    this.end({
+      scores,
+      winner: scores[0] === scores[1] ? null : scores[0] > scores[1] ? 0 : 1,
+      stars: scores[0] === total ? 3 : scores[0] > scores[1] ? 2 : scores[0] > 0 ? 1 : 0
+    });
+  }
+  /* ------------------------------ geometry ---------------------------- */
+  geom(zone) {
+    const pad = 14;
+    const size = Math.min(zone.w - pad * 2, zone.h - pad * 2 - 26);
+    const cell = size / GRID;
+    return {
+      cell,
+      ox: (zone.w - cell * GRID) / 2,
+      oy: 26 + (zone.h - 26 - cell * GRID) / 2
+    };
+  }
+  cellAt(local, G) {
+    const c = Math.floor((local.x - G.ox) / G.cell);
+    const r = Math.floor((local.y - G.oy) / G.cell);
+    if (c < 0 || r < 0 || c >= GRID || r >= GRID) return -1;
+    return r * GRID + c;
+  }
+  centre(index, G) {
+    return {
+      x: G.ox + index % GRID * G.cell + G.cell / 2,
+      y: G.oy + Math.floor(index / GRID) * G.cell + G.cell / 2
+    };
+  }
+  /* ------------------------------ drawing ----------------------------- */
+  /** Which colour, if any, currently occupies this cell for this player. */
+  occupantOf(player, cell) {
+    for (const [colour, path] of this.drawn[player]) {
+      const at = path.indexOf(cell);
+      if (at >= 0) return { colour, at };
+    }
+    return null;
+  }
+  terminalColour(cell) {
+    for (let c = 0; c < this.puzzle.terminals.length; c++) {
+      if (this.puzzle.terminals[c].includes(cell)) return c;
+    }
+    return -1;
+  }
+  beginTrace(player, cell) {
+    const term = this.terminalColour(cell);
+    if (term >= 0) {
+      this.drawn[player].set(term, [cell]);
+      this.env.sfx.tap();
+      return term;
+    }
+    const occ = this.occupantOf(player, cell);
+    if (occ) {
+      const path = this.drawn[player].get(occ.colour);
+      this.drawn[player].set(occ.colour, path.slice(0, occ.at + 1));
+      return occ.colour;
+    }
+    return -1;
+  }
+  extendTrace(player, colour, cell) {
+    const path = this.drawn[player].get(colour);
+    if (!path || !path.length) return;
+    const head = path[path.length - 1];
+    if (cell === head) return;
+    if (!adjacent(cell, head)) return;
+    if (path.length >= 2 && cell === path[path.length - 2]) {
+      path.pop();
+      return;
+    }
+    if (path.includes(cell)) return;
+    const term = this.terminalColour(cell);
+    if (term >= 0 && term !== colour) return;
+    if (term === colour && !this.puzzle.terminals[colour].includes(path[0])) return;
+    const occ = this.occupantOf(player, cell);
+    if (occ && occ.colour !== colour) {
+      const other = this.drawn[player].get(occ.colour);
+      this.drawn[player].set(occ.colour, other.slice(0, occ.at));
+    }
+    path.push(cell);
+    if (this.isSolved(player, colour)) this.env.sfx.good();
+    else this.env.sfx.tick();
+  }
+  /* ------------------------------ input ------------------------------- */
+  pointer(p) {
+    if (this.over) return;
+    if (p.type === "down") {
+      const zone2 = zoneAt(this.zones, p.x, p.y);
+      if (!zone2) return;
+      if (zone2.index === 1 && this.env.mode === "1p") return;
+      const local2 = toLocal(zone2, p.x, p.y);
+      if (!local2) return;
+      const cell2 = this.cellAt(local2, this.geom(zone2));
+      if (cell2 < 0) return;
+      const colour = this.beginTrace(zone2.index, cell2);
+      if (colour >= 0) this.drags.set(p.id, { player: zone2.index, colour });
+      return;
+    }
+    const drag = this.drags.get(p.id);
+    if (!drag) return;
+    if (p.type === "up") {
+      this.drags.delete(p.id);
+      return;
+    }
+    const zone = this.zones[drag.player];
+    const local = toLocal(zone, p.x, p.y);
+    if (!local) return;
+    const cell = this.cellAt(local, this.geom(zone));
+    if (cell >= 0) this.extendTrace(drag.player, drag.colour, cell);
+  }
+  /* ------------------------------ render ------------------------------ */
+  render(g) {
+    g.fillStyle = "#fdeef4";
+    g.fillRect(0, 0, this.w, this.h);
+    for (const zone of this.zones) inZone(g, zone, (gg) => this.renderHalf(gg, zone));
+    drawDivider(g, this.w, this.h);
+    if (this.env.mode === "1p") drawAiChip(g, this.w);
+  }
+  renderHalf(g, zone) {
+    const G = this.geom(zone);
+    const player = zone.index;
+    const ghost = this.env.mode === "1p" && player === 1;
+    fillRR(g, G.ox - 6, G.oy - 6, G.cell * GRID + 12, G.cell * GRID + 12, 16, "#ffffff");
+    g.strokeStyle = "rgba(32,49,58,0.1)";
+    g.lineWidth = 1.5;
+    for (let i = 1; i < GRID; i++) {
+      g.beginPath();
+      g.moveTo(G.ox + i * G.cell, G.oy);
+      g.lineTo(G.ox + i * G.cell, G.oy + G.cell * GRID);
+      g.moveTo(G.ox, G.oy + i * G.cell);
+      g.lineTo(G.ox + G.cell * GRID, G.oy + i * G.cell);
+      g.stroke();
+    }
+    g.lineCap = "round";
+    g.lineJoin = "round";
+    g.lineWidth = G.cell * 0.42;
+    for (const [colour, path] of this.drawn[player]) {
+      if (path.length < 2) continue;
+      g.globalAlpha = ghost ? 0.5 : 1;
+      g.strokeStyle = PALETTE[colour % PALETTE.length].hex;
+      g.beginPath();
+      path.forEach((cell, i) => {
+        const c = this.centre(cell, G);
+        if (i === 0) g.moveTo(c.x, c.y);
+        else g.lineTo(c.x, c.y);
+      });
+      g.stroke();
+      g.globalAlpha = 1;
+    }
+    this.puzzle.terminals.forEach((ends, colour) => {
+      const pal = PALETTE[colour % PALETTE.length];
+      const solved = this.isSolved(player, colour);
+      const animal = this.animals[colour % this.animals.length];
+      ends.forEach((cell, endIndex) => {
+        const c = this.centre(cell, G);
+        fillCircle(g, c.x, c.y, G.cell * 0.36, pal.hex);
+        if (endIndex === 0) {
+          drawAnimal(g, animal, c.x, c.y, G.cell * 0.26);
+        } else {
+          drawHome(g, c.x, c.y, G.cell * 0.3, pal.dark);
+          drawAnimal(g, animal, c.x, c.y + G.cell * 0.05, G.cell * 0.15);
+        }
+        if (solved) {
+          g.beginPath();
+          g.arc(c.x, c.y, G.cell * 0.4, 0, Math.PI * 2);
+          g.strokeStyle = pal.dark;
+          g.lineWidth = 3;
+          g.stroke();
+        }
+      });
+    });
+    const hudY = zone.h - 18;
+    if (this.env.mode === "1p" && zone.index === 1) return;
+    const done = this.solvedCount(player);
+    text(
+      g,
+      `${done}/${this.puzzle.paths.length}`,
+      20,
+      hudY,
+      20,
+      { fill: PLAYER[player].dark, align: "left" }
+    );
+    text(
+      g,
+      String(Math.ceil(Math.max(0, this.timeLeft))),
+      zone.w - 20,
+      hudY,
+      18,
+      { fill: "#5b7480", align: "right" }
+    );
+  }
+};
+function adjacent(a, b) {
+  const ar = Math.floor(a / GRID);
+  const ac2 = a % GRID;
+  const br = Math.floor(b / GRID);
+  const bc = b % GRID;
+  return Math.abs(ar - br) + Math.abs(ac2 - bc) === 1;
+}
+function neighbours2(cell) {
+  const r = Math.floor(cell / GRID);
+  const c = cell % GRID;
+  const out = [];
+  if (r > 0) out.push(cell - GRID);
+  if (r < GRID - 1) out.push(cell + GRID);
+  if (c > 0) out.push(cell - 1);
+  if (c < GRID - 1) out.push(cell + 1);
+  return out;
+}
+function generatePuzzle(rng) {
+  for (let attempt = 0; attempt < 80; attempt++) {
+    const owner = new Int8Array(CELLS).fill(-1);
+    const paths2 = [];
+    while (true) {
+      const empties = [];
+      for (let i = 0; i < CELLS; i++) if (owner[i] === -1) empties.push(i);
+      if (!empties.length) break;
+      const start = rng.pick(empties);
+      const path = [start];
+      owner[start] = paths2.length;
+      const maxLen = rng.int(3, 8);
+      let cur = start;
+      while (path.length < maxLen) {
+        const options = neighbours2(cur).filter((i) => owner[i] === -1);
+        if (!options.length) break;
+        cur = rng.pick(options);
+        owner[cur] = paths2.length;
+        path.push(cur);
+      }
+      paths2.push(path);
+      if (paths2.length > 12) break;
+    }
+    let repaired = true;
+    for (let guard = 0; guard < 12; guard++) {
+      const singles = paths2.filter((p) => p.length === 1);
+      if (!singles.length) break;
+      repaired = false;
+      for (const single of singles) {
+        const cell = single[0];
+        const host = paths2.find((p) => p.length > 1 && (adjacent(p[0], cell) || adjacent(p[p.length - 1], cell)));
+        if (!host) continue;
+        if (adjacent(host[0], cell)) host.unshift(cell);
+        else host.push(cell);
+        paths2.splice(paths2.indexOf(single), 1);
+        repaired = true;
+      }
+      if (!repaired) break;
+    }
+    if (paths2.some((p) => p.length < 2)) continue;
+    if (paths2.length < 3 || paths2.length > PALETTE.length) continue;
+    return {
+      paths: paths2,
+      terminals: paths2.map((p) => [p[0], p[p.length - 1]])
+    };
+  }
+  const paths = [];
+  for (let r = 0; r < GRID; r++) {
+    const row = [];
+    for (let c = 0; c < GRID; c++) row.push(r * GRID + c);
+    paths.push(row);
+  }
+  return { paths: paths.slice(0, 5), terminals: paths.slice(0, 5).map((p) => [p[0], p[p.length - 1]]) };
+}
+function drawHome(g, x, y, r, colour) {
+  g.beginPath();
+  g.moveTo(x, y - r);
+  g.lineTo(x + r, y - r * 0.05);
+  g.lineTo(x + r * 0.66, y - r * 0.05);
+  g.lineTo(x + r * 0.66, y + r * 0.8);
+  g.lineTo(x - r * 0.66, y + r * 0.8);
+  g.lineTo(x - r * 0.66, y - r * 0.05);
+  g.lineTo(x - r, y - r * 0.05);
+  g.closePath();
+  g.fillStyle = "#ffffff";
+  g.fill();
+  g.strokeStyle = colour;
+  g.lineWidth = Math.max(2, r * 0.16);
+  g.lineJoin = "round";
+  g.stroke();
+}
+
+// src/games/index.js
+var GAMES = [
+  SnapSafari,
+  MemoryZoo,
+  IceCracker,
+  RopeRumble,
+  StarMaze,
+  BubbleBlitz,
+  PenguinSlide,
+  ColourSplash,
+  TreasureReef,
+  LoopTheLine
+];
+function byId(id) {
+  return GAMES.find((g) => g.meta.id === id) || null;
+}
+
+// src/engine/input.js
+var Input = class {
+  /**
+   * @param {HTMLCanvasElement} canvas
+   * @param {(p: Ptr) => void} handler receives coordinates in CSS pixels
+   */
+  constructor(canvas, handler) {
+    this.canvas = canvas;
+    this.handler = handler;
+    this.active = /* @__PURE__ */ new Map();
+    this._down = (e) => this._emit(e, "down");
+    this._move = (e) => this._emit(e, "move");
+    this._up = (e) => this._emit(e, "up");
+    canvas.addEventListener("pointerdown", this._down, { passive: false });
+    canvas.addEventListener("pointermove", this._move, { passive: false });
+    canvas.addEventListener("pointerup", this._up, { passive: false });
+    canvas.addEventListener("pointercancel", this._up, { passive: false });
+    canvas.addEventListener("touchstart", prevent, { passive: false });
+    canvas.addEventListener("touchmove", prevent, { passive: false });
+    canvas.addEventListener("contextmenu", prevent);
+  }
+  /** @param {PointerEvent} e */
+  _emit(e, type) {
+    e.preventDefault();
+    const r = this.canvas.getBoundingClientRect();
+    const x = e.clientX - r.left;
+    const y = e.clientY - r.top;
+    if (type === "down") {
+      this.active.set(e.pointerId, { x, y });
+      if (this.canvas.setPointerCapture) {
+        try {
+          this.canvas.setPointerCapture(e.pointerId);
+        } catch {
+        }
+      }
+    } else if (type === "move") {
+      if (!this.active.has(e.pointerId)) return;
+      this.active.set(e.pointerId, { x, y });
+    } else {
+      if (!this.active.has(e.pointerId)) return;
+      this.active.delete(e.pointerId);
+    }
+    this.handler({ type, id: e.pointerId, x, y });
+  }
+  destroy() {
+    const c = this.canvas;
+    c.removeEventListener("pointerdown", this._down);
+    c.removeEventListener("pointermove", this._move);
+    c.removeEventListener("pointerup", this._up);
+    c.removeEventListener("pointercancel", this._up);
+    c.removeEventListener("touchstart", prevent);
+    c.removeEventListener("touchmove", prevent);
+    c.removeEventListener("contextmenu", prevent);
+    this.active.clear();
+  }
+};
+function prevent(e) {
+  e.preventDefault();
+}
+
+// src/engine/loop.js
+var STEP2 = 1 / 120;
+var MAX_FRAME = 0.25;
+var Loop = class {
+  /**
+   * @param {(dt:number) => void} update
+   * @param {() => void} render
+   */
+  constructor(update, render) {
+    this.update = update;
+    this.render = render;
+    this.running = false;
+    this.acc = 0;
+    this.last = 0;
+    this._frame = this._frame.bind(this);
+  }
+  start() {
+    if (this.running) return;
+    this.running = true;
+    this.last = performance.now();
+    this.acc = 0;
+    this.raf = requestAnimationFrame(this._frame);
+  }
+  stop() {
+    this.running = false;
+    if (this.raf) cancelAnimationFrame(this.raf);
+    this.raf = 0;
+  }
+  _frame(now) {
+    if (!this.running) return;
+    this.raf = requestAnimationFrame(this._frame);
+    let elapsed = (now - this.last) / 1e3;
+    this.last = now;
+    if (elapsed > MAX_FRAME) elapsed = MAX_FRAME;
+    this.acc += elapsed;
+    while (this.acc >= STEP2) {
+      this.update(STEP2);
+      this.acc -= STEP2;
+    }
+    this.render();
+  }
+};
+
+// src/engine/rng.js
+function hashSeed(str) {
+  let h = 1779033703 ^ str.length;
+  for (let i = 0; i < str.length; i++) {
+    h = Math.imul(h ^ str.charCodeAt(i), 3432918353);
+    h = h << 13 | h >>> 19;
+  }
+  return h >>> 0;
+}
+var Rng = class {
+  /** @param {number|string} seed */
+  constructor(seed) {
+    this.seed = typeof seed === "string" ? hashSeed(seed) : seed >>> 0;
+    this.state = this.seed || 1;
+  }
+  /** Uniform in [0, 1). */
+  next() {
+    this.state = this.state + 1831565813 >>> 0;
+    let t = this.state;
+    t = Math.imul(t ^ t >>> 15, t | 1);
+    t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  }
+  /** Uniform float in [min, max). */
+  range(min, max) {
+    return min + this.next() * (max - min);
+  }
+  /** Uniform integer in [min, max] inclusive. */
+  int(min, max) {
+    return Math.floor(this.range(min, max + 1));
+  }
+  /** True with probability p. */
+  chance(p) {
+    return this.next() < p;
+  }
+  /** @template T @param {T[]} arr @returns {T} */
+  pick(arr) {
+    return arr[Math.floor(this.next() * arr.length)];
+  }
+  /** Fisher-Yates, in place. @template T @param {T[]} arr @returns {T[]} */
+  shuffle(arr) {
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(this.next() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  }
+  /** Normally distributed value, Box-Muller. Used for AI reaction times. */
+  gaussian(mean = 0, sd = 1) {
+    let u = 0;
+    let v = 0;
+    while (u === 0) u = this.next();
+    while (v === 0) v = this.next();
+    return mean + sd * Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+  }
+};
+function dailySeed() {
+  const d = /* @__PURE__ */ new Date();
+  return hashSeed(`${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`);
+}
+
+// src/engine/storage.js
+var KEY = "minigames.save.v1";
+function blank() {
+  return {
+    stars: {},
+    difficulty: {},
+    streak: {},
+    plays: {},
+    stickers: [],
+    adaptive: true,
+    // decision 4: on by default
+    sound: true
+  };
+}
+var cache = null;
+function load() {
+  if (cache) return cache;
+  try {
+    const raw = localStorage.getItem(KEY);
+    cache = raw ? { ...blank(), ...JSON.parse(raw) } : blank();
+  } catch {
+    cache = blank();
+  }
+  return cache;
+}
+function save() {
+  try {
+    localStorage.setItem(KEY, JSON.stringify(load()));
+  } catch {
+  }
+}
+function getDifficulty(gameId) {
+  const d = load().difficulty[gameId];
+  return typeof d === "number" ? d : 1;
+}
+function setDifficulty(gameId, tier) {
+  load().difficulty[gameId] = Math.max(0, Math.min(2, tier));
+  save();
+}
+function getStars(gameId) {
+  return load().stars[gameId] || 0;
+}
+function totalStars() {
+  const s = load().stars;
+  return Object.keys(s).reduce((a, k) => a + s[k], 0);
+}
+function isAdaptive() {
+  return load().adaptive !== false;
+}
+function setAdaptive(on) {
+  load().adaptive = !!on;
+  save();
+}
+function isSoundOn() {
+  return load().sound !== false;
+}
+function setSound(on) {
+  load().sound = !!on;
+  save();
+}
+function stickers() {
+  return load().stickers.slice();
+}
+function recordRound(gameId, result) {
+  const data = load();
+  data.plays[gameId] = (data.plays[gameId] || 0) + 1;
+  data.stars[gameId] = Math.max(data.stars[gameId] || 0, result.stars);
+  if (result.stars >= 1 && !data.stickers.includes(gameId)) {
+    data.stickers.push(gameId);
+  }
+  if (result.stars >= 3 && !data.stickers.includes(`${gameId}.gold`)) {
+    data.stickers.push(`${gameId}.gold`);
+  }
+  let changed = 0;
+  let tier = getDifficulty(gameId);
+  if (result.won !== null) {
+    const prev = data.streak[gameId] || 0;
+    const streak = result.won ? Math.max(0, prev) + 1 : Math.min(0, prev) - 1;
+    data.streak[gameId] = streak;
+    if (data.adaptive !== false) {
+      if (streak >= 3 && tier < 2) {
+        tier += 1;
+        changed = 1;
+        data.streak[gameId] = 0;
+      } else if (streak <= -3 && tier > 0) {
+        tier -= 1;
+        changed = -1;
+        data.streak[gameId] = 0;
+      }
+      data.difficulty[gameId] = tier;
+    }
+  }
+  save();
+  return { tier, changed };
+}
+function resetAll() {
+  cache = blank();
+  save();
+}
+
+// src/engine/audio.js
+var ac = null;
+var master = null;
+function unlock() {
+  if (ac) {
+    if (ac.state === "suspended") ac.resume();
+    return;
+  }
+  const Ctor = window.AudioContext || window.webkitAudioContext;
+  if (!Ctor) return;
+  try {
+    ac = new Ctor();
+    master = ac.createGain();
+    master.gain.value = 0.5;
+    master.connect(ac.destination);
+  } catch {
+    ac = null;
+  }
+}
+function ready() {
+  return ac && master && isSoundOn();
+}
+function note(freq, dur, opt = {}) {
+  if (!ready()) return;
+  const t0 = ac.currentTime + (opt.delay || 0);
+  const osc = ac.createOscillator();
+  const g = ac.createGain();
+  osc.type = opt.type || "sine";
+  osc.frequency.setValueAtTime(freq, t0);
+  if (opt.slideTo) osc.frequency.exponentialRampToValueAtTime(opt.slideTo, t0 + dur);
+  const peak = opt.gain == null ? 0.25 : opt.gain;
+  g.gain.setValueAtTime(1e-4, t0);
+  g.gain.exponentialRampToValueAtTime(peak, t0 + 0.012);
+  g.gain.exponentialRampToValueAtTime(1e-4, t0 + dur);
+  osc.connect(g);
+  g.connect(master);
+  osc.start(t0);
+  osc.stop(t0 + dur + 0.02);
+}
+function noise(dur, opt = {}) {
+  if (!ready()) return;
+  const t0 = ac.currentTime + (opt.delay || 0);
+  const frames = Math.max(1, Math.floor(ac.sampleRate * dur));
+  const buf = ac.createBuffer(1, frames, ac.sampleRate);
+  const ch = buf.getChannelData(0);
+  for (let i = 0; i < frames; i++) ch[i] = (Math.random() * 2 - 1) * (1 - i / frames);
+  const src = ac.createBufferSource();
+  src.buffer = buf;
+  const filter = ac.createBiquadFilter();
+  filter.type = opt.filter || "bandpass";
+  filter.frequency.setValueAtTime(opt.freq || 1200, t0);
+  if (opt.sweepTo) filter.frequency.exponentialRampToValueAtTime(opt.sweepTo, t0 + dur);
+  filter.Q.value = opt.q == null ? 1 : opt.q;
+  const g = ac.createGain();
+  g.gain.value = opt.gain == null ? 0.3 : opt.gain;
+  src.connect(filter);
+  filter.connect(g);
+  g.connect(master);
+  src.start(t0);
+}
+var C5 = 523.25;
+var E5 = 659.25;
+var G5 = 783.99;
+var C6 = 1046.5;
+var sfx = {
+  /** Any button or tile touch. Deliberately soft — it fires constantly. */
+  tap: () => note(660, 0.07, { type: "triangle", gain: 0.16 }),
+  /** Confirming a menu choice. */
+  select: () => {
+    note(C5, 0.09, { type: "triangle", gain: 0.2 });
+    note(G5, 0.12, { type: "triangle", gain: 0.18, delay: 0.06 });
+  },
+  /** Correct match, correct sort, star collected. */
+  good: () => {
+    note(E5, 0.1, { type: "sine", gain: 0.24 });
+    note(G5, 0.14, { type: "sine", gain: 0.22, delay: 0.07 });
+  },
+  /** Wrong move. A gentle falling third, never a buzzer. */
+  bad: () => {
+    note(392, 0.14, { type: "sine", gain: 0.2 });
+    note(311, 0.2, { type: "sine", gain: 0.18, delay: 0.09 });
+  },
+  /** A disc, block or penguin landing. */
+  thunk: () => {
+    note(150, 0.12, { type: "sine", gain: 0.3, slideTo: 70 });
+    noise(0.06, { freq: 400, gain: 0.12 });
+  },
+  pop: () => note(880, 0.08, { type: "sine", gain: 0.22, slideTo: 1600 }),
+  whoosh: () => noise(0.22, { filter: "lowpass", freq: 2400, sweepTo: 300, gain: 0.16 }),
+  slide: () => noise(0.5, { filter: "lowpass", freq: 900, sweepTo: 200, gain: 0.1 }),
+  splash: () => noise(0.3, { filter: "lowpass", freq: 1800, sweepTo: 250, gain: 0.22 }),
+  sparkle: () => {
+    [C6, 1318.5, 1568].forEach((f, i) => note(f, 0.16, { type: "triangle", gain: 0.16, delay: i * 0.05 }));
+  },
+  crack: () => {
+    noise(0.16, { filter: "highpass", freq: 2e3, gain: 0.3 });
+    note(200, 0.1, { type: "square", gain: 0.1, slideTo: 90 });
+  },
+  tick: () => note(1200, 0.03, { type: "square", gain: 0.08 }),
+  /** End of round. Both are pleasant; only one is triumphant. */
+  win: () => {
+    [C5, E5, G5, C6].forEach((f, i) => note(f, 0.32, { type: "triangle", gain: 0.24, delay: i * 0.1 }));
+  },
+  lose: () => {
+    [G5, E5, C5].forEach((f, i) => note(f, 0.28, { type: "sine", gain: 0.2, delay: i * 0.11 }));
+  },
+  draw: () => {
+    note(E5, 0.3, { type: "triangle", gain: 0.22 });
+    note(E5, 0.3, { type: "triangle", gain: 0.2, delay: 0.16 });
+  }
+};
+
+// src/ui/icons.js
+function prep(canvas, cssW, cssH) {
+  const dpr = Math.min(window.devicePixelRatio || 1, 3);
+  canvas.width = Math.round(cssW * dpr);
+  canvas.height = Math.round(cssH * dpr);
+  const g = canvas.getContext("2d");
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  g.clearRect(0, 0, cssW, cssH);
+  return g;
+}
+function drawTurtle(g, cx, cy, r) {
+  fillCircle(g, cx + r * 0.82, cy + r * 0.1, r * 0.34, "#7ec98a");
+  fillCircle(g, cx + r * 0.92, cy + r * 0.02, r * 0.07, "#2b2b2b");
+  for (const s of [-1, 1]) {
+    g.beginPath();
+    g.ellipse(cx + s * r * 0.45, cy + r * 0.62, r * 0.22, r * 0.14, 0, 0, Math.PI * 2);
+    g.fillStyle = "#7ec98a";
+    g.fill();
+  }
+  g.beginPath();
+  g.ellipse(cx, cy, r, r * 0.78, 0, Math.PI, 0);
+  g.closePath();
+  g.fillStyle = "#4e9b5c";
+  g.fill();
+  g.save();
+  g.beginPath();
+  g.ellipse(cx, cy, r, r * 0.78, 0, Math.PI, 0);
+  g.clip();
+  for (let i = -2; i <= 2; i++) {
+    poly(g, cx + i * r * 0.42, cy - r * 0.24, r * 0.22, 6);
+    g.fillStyle = "#3d7d49";
+    g.fill();
+  }
+  g.restore();
+}
+function drawRocket(g, cx, cy, r) {
+  g.save();
+  g.translate(cx, cy);
+  for (const s of [-1, 1]) {
+    g.beginPath();
+    g.moveTo(s * r * 0.3, r * 0.3);
+    g.lineTo(s * r * 0.78, r * 0.86);
+    g.lineTo(s * r * 0.3, r * 0.86);
+    g.closePath();
+    g.fillStyle = "#e8453c";
+    g.fill();
+  }
+  g.beginPath();
+  g.moveTo(0, -r);
+  g.quadraticCurveTo(r * 0.46, -r * 0.1, r * 0.36, r * 0.86);
+  g.lineTo(-r * 0.36, r * 0.86);
+  g.quadraticCurveTo(-r * 0.46, -r * 0.1, 0, -r);
+  g.closePath();
+  g.fillStyle = "#f6f2ea";
+  g.fill();
+  g.strokeStyle = "#c9c0b2";
+  g.lineWidth = Math.max(1.5, r * 0.05);
+  g.stroke();
+  fillCircle(g, 0, -r * 0.16, r * 0.24, "#4aa3c7");
+  fillCircle(g, -r * 0.07, -r * 0.23, r * 0.08, "rgba(255,255,255,.75)");
+  g.beginPath();
+  g.moveTo(-r * 0.2, r * 0.86);
+  g.quadraticCurveTo(0, r * 1.5, r * 0.2, r * 0.86);
+  g.closePath();
+  g.fillStyle = "#f2a63c";
+  g.fill();
+  g.restore();
+}
+function ground(g, w, h, fill) {
+  rr(g, 2, 2, w - 4, h - 4, 18);
+  g.fillStyle = fill;
+  g.fill();
+}
+function drawChoiceArt(g, name, w, h) {
+  const cx = w / 2;
+  const cy = h / 2;
+  switch (name) {
+    case "one":
+      ground(g, w, h, "#eef6f9");
+      drawAnimal(g, "fox", cx, cy + 2, h * 0.34);
+      break;
+    case "two":
+      ground(g, w, h, "#fdf1e4");
+      drawAnimal(g, "fox", cx - w * 0.17, cy + 2, h * 0.3);
+      drawAnimal(g, "panda", cx + w * 0.17, cy + 2, h * 0.3);
+      break;
+    case "turtle":
+      ground(g, w, h, "#eef7ee");
+      drawTurtle(g, cx - w * 0.05, cy + h * 0.06, h * 0.3);
+      break;
+    case "rabbit":
+      ground(g, w, h, "#fdf4f6");
+      drawAnimal(g, "rabbit", cx, cy + h * 0.1, h * 0.29);
+      break;
+    case "rocket":
+      ground(g, w, h, "#f4eefb");
+      drawRocket(g, cx, cy, h * 0.34);
+      break;
+    default:
+      break;
+  }
+}
+function drawBrand(g, size) {
+  const cx = size / 2;
+  rr(g, size * 0.06, size * 0.34, size * 0.88, size * 0.58, size * 0.16);
+  g.fillStyle = "#f2c14e";
+  g.fill();
+  g.strokeStyle = "#20313a";
+  g.lineWidth = size * 0.05;
+  g.stroke();
+  drawAnimal(g, "fox", cx - size * 0.26, size * 0.33, size * 0.15);
+  drawAnimal(g, "panda", cx + size * 0.26, size * 0.33, size * 0.15);
+  drawAnimal(g, "frog", cx, size * 0.26, size * 0.17);
+  star(g, cx, size * 0.68, size * 0.15);
+  g.fillStyle = "#fff";
+  g.fill();
+}
+function drawResultArt(g, w, h, outcome, animalId) {
+  g.clearRect(0, 0, w, h);
+  const cx = w / 2;
+  const cy = h * 0.58;
+  const r = h * 0.3;
+  if (outcome === "win") {
+    for (let i = 0; i < 12; i++) {
+      const a = i / 12 * Math.PI * 2;
+      star(g, cx + Math.cos(a) * r * 1.9, cy + Math.sin(a) * r * 1.25, h * 0.045);
+      g.fillStyle = i % 2 ? "#f2c14e" : "#4aa3c7";
+      g.globalAlpha = 0.85;
+      g.fill();
+    }
+    g.globalAlpha = 1;
+  }
+  drawAnimal(g, animalId, cx, cy, r, { sad: outcome === "lose", blink: outcome === "lose" });
+  if (outcome === "win") {
+    g.beginPath();
+    g.moveTo(cx - r * 0.62, cy - r * 1.06);
+    g.lineTo(cx - r * 0.4, cy - r * 1.5);
+    g.lineTo(cx - r * 0.12, cy - r * 1.14);
+    g.lineTo(cx + r * 0.12, cy - r * 1.6);
+    g.lineTo(cx + r * 0.4, cy - r * 1.14);
+    g.lineTo(cx + r * 0.62, cy - r * 1.5);
+    g.lineTo(cx + r * 0.7, cy - r * 1);
+    g.lineTo(cx - r * 0.7, cy - r * 1);
+    g.closePath();
+    g.fillStyle = "#f2c14e";
+    g.fill();
+    g.strokeStyle = "#c99a1e";
+    g.lineWidth = Math.max(2, h * 0.012);
+    g.stroke();
+  }
+}
+function drawSticker(g, size, gold, drawIcon) {
+  const cx = size / 2;
+  const petals = 14;
+  for (let i = 0; i < petals; i++) {
+    const a = i / petals * Math.PI * 2;
+    circle(g, cx + Math.cos(a) * size * 0.4, cx + Math.sin(a) * size * 0.4, size * 0.115);
+    g.fillStyle = gold ? "#f2c14e" : "#ffffff";
+    g.fill();
+    g.strokeStyle = gold ? "#c99a1e" : "#20313a";
+    g.lineWidth = size * 0.022;
+    g.stroke();
+  }
+  fillCircle(g, cx, cx, size * 0.4, gold ? "#fff6e0" : "#ffffff");
+  circle(g, cx, cx, size * 0.4);
+  g.strokeStyle = gold ? "#c99a1e" : "#20313a";
+  g.lineWidth = size * 0.03;
+  g.stroke();
+  g.save();
+  g.translate(cx - size * 0.3, cx - size * 0.3);
+  g.scale(0.6, 0.6);
+  drawIcon(g, size);
+  g.restore();
+}
+
+// src/main.js
+var $ = (id) => document.getElementById(id);
+var screens = {};
+for (const el of document.querySelectorAll("[data-screen]")) screens[el.dataset.screen] = el;
+var OVERLAYS = /* @__PURE__ */ new Set(["pause", "result"]);
+var current = "home";
+function show(name) {
+  for (const key of Object.keys(screens)) {
+    if (OVERLAYS.has(key)) {
+      screens[key].hidden = key !== name;
+    } else if (name === "pause" || name === "result") {
+      screens[key].hidden = key !== "play";
+    } else {
+      screens[key].hidden = key !== name;
+    }
+  }
+  current = name;
+  updateRotateHint();
+}
+var game = null;
+var loop = null;
+var input = null;
+var ctx = null;
+var selectedId = null;
+var mode = "1p";
+var difficulty = 1;
+var lastResult = null;
+var stage = (
+  /** @type {HTMLCanvasElement} */
+  $("stage")
+);
+function isPortrait() {
+  return window.innerHeight > window.innerWidth;
+}
+function sizeStage() {
+  const rect = screens.play.getBoundingClientRect();
+  const w = Math.max(1, Math.round(rect.width));
+  const h = Math.max(1, Math.round(rect.height));
+  const dpr = Math.min(window.devicePixelRatio || 1, 3);
+  stage.width = Math.round(w * dpr);
+  stage.height = Math.round(h * dpr);
+  ctx = stage.getContext("2d");
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  return { w, h };
+}
+function startRound(seed) {
+  const Game = byId(selectedId);
+  if (!Game) return;
+  teardown();
+  show("play");
+  const { w, h } = sizeStage();
+  const env = {
+    w,
+    h,
+    rng: new Rng(seed == null ? Math.floor(Math.random() * 4294967295) : seed),
+    mode,
+    difficulty,
+    portrait: isPortrait(),
+    sfx,
+    finish: onFinish
+  };
+  game = new Game(env);
+  game.seed = env.rng.seed;
+  input = new Input(stage, (p) => {
+    if (current === "play" && game) game.pointer(p);
+  });
+  loop = new Loop(
+    (dt) => {
+      if (game && !game.over) game.update(dt);
+      updateTimebar();
+    },
+    () => {
+      if (!game || !ctx) return;
+      ctx.save();
+      game.render(ctx);
+      ctx.restore();
+    }
+  );
+  loop.start();
+  updateTimebar();
+}
+function teardown() {
+  if (loop) loop.stop();
+  if (input) input.destroy();
+  if (game) game.destroy();
+  loop = null;
+  input = null;
+  game = null;
+}
+function updateTimebar() {
+  const bar = $("timebar");
+  if (!game || game.timeLeft < 0) {
+    bar.hidden = true;
+    return;
+  }
+  bar.hidden = false;
+  const total = game.constructor.meta.seconds || 1;
+  const frac = Math.max(0, Math.min(1, game.timeLeft / total));
+  $("timebar-fill").style.width = `${frac * 100}%`;
+  bar.classList.toggle("low", game.timeLeft <= 10);
+}
+function onFinish(result) {
+  lastResult = result;
+  if (loop) loop.stop();
+  const won = mode === "1p" ? result.winner === null ? null : result.winner === 0 : null;
+  const record = recordRound(selectedId, { stars: result.stars, won });
+  if (mode === "1p") difficulty = record.tier;
+  const outcome = result.winner === null ? "draw" : result.winner === 0 ? "win" : "lose";
+  if (outcome === "win") sfx.win();
+  else if (outcome === "lose") sfx.lose();
+  else sfx.draw();
+  const meta = byId(selectedId).meta;
+  $("result-title").textContent = mode === "2p" ? outcome === "draw" ? "It's a tie!" : `Player ${result.winner + 1} wins!` : outcome === "win" ? "You win!" : outcome === "draw" ? "It's a tie!" : "So close!";
+  $("result-score").textContent = `${result.scores[0]} \u2014 ${result.scores[1]}`;
+  const starEls = [0, 1, 2].map((i) => `<i class="${i < result.stars ? "on" : ""}"></i>`).join("");
+  $("result-stars").innerHTML = starEls;
+  let note2 = "";
+  if (mode === "1p" && record.changed > 0) note2 = "Three wins in a row \u2014 the next one is tougher.";
+  else if (mode === "1p" && record.changed < 0) note2 = "The next opponent will go a bit easier.";
+  else if (result.stars === 3) note2 = "Gold sticker earned!";
+  $("result-note").textContent = note2;
+  const g = prep($("result-art"), 320, 178);
+  drawResultArt(g, 320, 178, outcome, meta.mascot || "fox");
+  refreshHome();
+  show("result");
+}
+function buildPicker() {
+  const wrap = $("picker");
+  wrap.innerHTML = "";
+  for (const Game of GAMES) {
+    const meta = Game.meta;
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "tile";
+    btn.dataset.game = meta.id;
+    btn.innerHTML = `<canvas width="132" height="132"></canvas><span class="tile-name">${meta.title}</span><span class="tile-stars">${[0, 1, 2].map(() => "<i></i>").join("")}</span>`;
+    btn.addEventListener("click", () => {
+      unlock();
+      sfx.select();
+      openSetup(meta.id);
+    });
+    wrap.appendChild(btn);
+    const g = prep(btn.querySelector("canvas"), 132, 132);
+    Game.icon(g, 132);
+  }
+  refreshHome();
+}
+function refreshHome() {
+  $("star-total").textContent = String(totalStars());
+  for (const tile of document.querySelectorAll(".tile")) {
+    const stars = getStars(tile.dataset.game);
+    tile.querySelectorAll(".tile-stars i").forEach((el, i) => {
+      el.classList.toggle("on", i < stars);
+    });
+  }
+}
+function openSetup(id) {
+  selectedId = id;
+  const Game = byId(id);
+  const meta = Game.meta;
+  difficulty = getDifficulty(id);
+  $("setup-title").textContent = meta.title;
+  $("setup-verb").textContent = `${meta.category} \xB7 ${meta.verb}`;
+  Game.icon(prep($("setup-mark"), 96, 96), 96);
+  setMode(mode);
+  setDifficulty2(difficulty);
+  show("setup");
+}
+function setMode(m) {
+  mode = m;
+  for (const b of document.querySelectorAll("#mode-row .choice")) {
+    b.setAttribute("aria-pressed", String(b.dataset.mode === m));
+  }
+  $("difficulty-block").hidden = m !== "1p";
+}
+function setDifficulty2(d) {
+  difficulty = d;
+  for (const b of document.querySelectorAll("#diff-row .choice")) {
+    b.setAttribute("aria-pressed", String(Number(b.dataset.diff) === d));
+  }
+  if (selectedId) setDifficulty(selectedId, d);
+}
+function openAlbum() {
+  const owned = new Set(stickers());
+  const grid = $("album-grid");
+  grid.innerHTML = "";
+  for (const Game of GAMES) {
+    const meta = Game.meta;
+    for (const gold of [false, true]) {
+      const key = gold ? `${meta.id}.gold` : meta.id;
+      const earned = owned.has(key);
+      const cell = document.createElement("div");
+      cell.className = `sticker${earned ? " earned" : ""}${gold ? " gold" : ""}`;
+      cell.innerHTML = `<canvas width="78" height="78"></canvas><span>${meta.title}${gold ? " \u2605" : ""}</span>`;
+      grid.appendChild(cell);
+      const g = prep(cell.querySelector("canvas"), 78, 78);
+      drawSticker(g, 78, gold, (gg, s) => Game.icon(gg, s));
+    }
+  }
+  show("album");
+}
+function openSettings() {
+  $("opt-sound").checked = isSoundOn();
+  $("opt-adaptive").checked = isAdaptive();
+  show("settings");
+}
+function updateRotateHint() {
+  const hint = $("rotate-hint");
+  const Game = selectedId ? byId(selectedId) : null;
+  hint.hidden = !(current === "setup" && mode === "2p" && Game && Game.meta.layout === "duel" && isPortrait());
+}
+function bind() {
+  $("setup-back").addEventListener("click", () => {
+    sfx.tap();
+    show("home");
+  });
+  $("album-back").addEventListener("click", () => {
+    sfx.tap();
+    show("home");
+  });
+  $("settings-back").addEventListener("click", () => {
+    sfx.tap();
+    show("home");
+  });
+  $("btn-album").addEventListener("click", () => {
+    unlock();
+    sfx.tap();
+    openAlbum();
+  });
+  $("btn-settings").addEventListener("click", () => {
+    unlock();
+    sfx.tap();
+    openSettings();
+  });
+  for (const b of document.querySelectorAll("#mode-row .choice")) {
+    b.addEventListener("click", () => {
+      sfx.tap();
+      setMode(b.dataset.mode);
+      updateRotateHint();
+    });
+  }
+  for (const b of document.querySelectorAll("#diff-row .choice")) {
+    b.addEventListener("click", () => {
+      sfx.tap();
+      setDifficulty2(Number(b.dataset.diff));
+    });
+  }
+  $("btn-play").addEventListener("click", () => {
+    unlock();
+    sfx.select();
+    startRound();
+  });
+  $("btn-pause").addEventListener("click", () => {
+    if (!game) return;
+    sfx.tap();
+    if (loop) loop.stop();
+    show("pause");
+  });
+  $("btn-resume").addEventListener("click", () => {
+    sfx.tap();
+    show("play");
+    if (loop) loop.start();
+  });
+  $("btn-restart").addEventListener("click", () => {
+    sfx.select();
+    startRound();
+  });
+  $("btn-quit").addEventListener("click", () => {
+    sfx.tap();
+    teardown();
+    show("home");
+  });
+  $("btn-again").addEventListener("click", () => {
+    sfx.select();
+    startRound();
+  });
+  $("btn-home").addEventListener("click", () => {
+    sfx.tap();
+    teardown();
+    show("home");
+  });
+  $("opt-sound").addEventListener("change", (e) => {
+    setSound(e.target.checked);
+    if (e.target.checked) {
+      unlock();
+      sfx.good();
+    }
+  });
+  $("opt-adaptive").addEventListener("change", (e) => setAdaptive(e.target.checked));
+  $("opt-reset").addEventListener("click", () => {
+    if (confirm("Erase every star and sticker on this tablet?")) {
+      resetAll();
+      refreshHome();
+      sfx.bad();
+    }
+  });
+  window.addEventListener("resize", onResize);
+  window.addEventListener("orientationchange", onResize);
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden && current === "play" && game && !game.over) {
+      if (loop) loop.stop();
+      show("pause");
+    }
+  });
+}
+var resizeTimer = 0;
+function onResize() {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => {
+    updateRotateHint();
+    if (!game || current === "home") return;
+    const { w, h } = sizeStage();
+    game.env.portrait = isPortrait();
+    game.resize(w, h);
+  }, 80);
+}
+function boot() {
+  drawBrand(prep($("brand-mark"), 60, 60), 60);
+  for (const c of document.querySelectorAll(".choice-art")) {
+    drawChoiceArt(prep(c, 96, 70), c.dataset.art, 96, 70);
+  }
+  buildPicker();
+  bind();
+  show("home");
+  const installable = document.querySelector('link[rel="manifest"]');
+  if (installable && "serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("sw.js").catch(() => {
+      });
+    });
+  }
+}
+window.__dailySeed = dailySeed;
+boot();
+
+</script>

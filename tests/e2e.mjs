@@ -21,7 +21,7 @@ const launchOptions = process.env.CHROMIUM_PATH
   ? { executablePath: process.env.CHROMIUM_PATH }
   : {};
 
-const BASE = 'http://127.0.0.1:8899';
+const BASE = process.env.BASE || 'http://127.0.0.1:8899';
 const browser = await chromium.launch(launchOptions);
 const ctx = await browser.newContext({ viewport: { width: 1180, height: 820 }, hasTouch: true });
 const page = await ctx.newPage();
@@ -67,11 +67,16 @@ check(totalShown === String(Object.values(saved.stars).reduce((a, b) => a + b, 0
   `picker star total matches the save (${totalShown})`);
 
 // --- Adaptive difficulty steps up after three straight wins ------------
-const bumped = await page.evaluate(() => {
-  localStorage.removeItem('minigames.save.v1');
-  return null;
-});
+// These drive the save module directly, so they only apply to the
+// multi-file deployment where the modules are separately addressable. The
+// single-file build inlines the identical source.
+await page.evaluate(() => localStorage.removeItem('minigames.save.v1'));
 await page.reload({ waitUntil: 'networkidle' });
+const modulesAddressable = await page.evaluate(async () => {
+  try { await import('/src/engine/storage.js'); return true; } catch { return false; }
+});
+if (!modulesAddressable) console.log('skip  adaptive-difficulty checks (single-file build)');
+if (modulesAddressable) {
 const adaptive = await page.evaluate(async () => {
   const save = await import('/src/engine/storage.js');
   save.setDifficulty('snap-safari', 0);
@@ -103,14 +108,21 @@ const off = await page.evaluate(async () => {
   return last;
 });
 check(off.tier === 1 && off.changed === 0, 'adaptive off leaves the tier alone');
+}
 
 // --- Sticker album ------------------------------------------------------
 await page.click('#btn-album');
 const stickers = await page.$$eval('.sticker', (els) => ({
   total: els.length, earned: els.filter((e) => e.classList.contains('earned')).length,
 }));
+const owned = await page.evaluate(() => {
+  const raw = localStorage.getItem('minigames.save.v1');
+  return raw ? (JSON.parse(raw).stickers || []).length : 0;
+});
 check(stickers.total === 20, `album shows two stickers per game (${stickers.total})`);
-check(stickers.earned >= 1, `earned stickers are marked (${stickers.earned})`);
+// Marked-as-earned must track the save exactly, whether that is none or many.
+check(stickers.earned === owned,
+  `earned stickers match the save (${stickers.earned} shown, ${owned} saved)`);
 
 // --- Pause and resume ---------------------------------------------------
 await page.click('#album-back');

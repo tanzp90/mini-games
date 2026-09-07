@@ -8,11 +8,13 @@
     "start": "http-server -p 8899 -s .",
     "test:ai": "node tests/ai-strength.mjs",
     "test:smoke": "node tests/smoke.mjs",
-    "test:e2e": "node tests/e2e.mjs"
+    "test:e2e": "node tests/e2e.mjs",
+    "build:single": "node tools/build-single-file.mjs"
   },
   "//": "The app itself has no runtime dependencies and no build step. These are development tools only: a static server to run it, and a browser to test it in.",
   "devDependencies": {
     "http-server": "^14.1.1",
-    "playwright": "^1.63.0"
+    "playwright": "^1.63.0",
+    "esbuild": "^0.28.2"
   }
 }

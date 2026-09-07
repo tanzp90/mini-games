@@ -382,7 +382,13 @@ function boot() {
   bind();
   show('home');
 
-  if ('serviceWorker' in navigator) {
+  // The single-file build (tools/build-single-file.mjs) inlines everything
+  // into one page and ships no manifest or sw.js, so the presence of the
+  // manifest link is what distinguishes the installable multi-file
+  // deployment from it. Registering a service worker that is not there
+  // would only produce a 404.
+  const installable = document.querySelector('link[rel="manifest"]');
+  if (installable && 'serviceWorker' in navigator) {
     window.addEventListener('load', () => {
       navigator.serviceWorker.register('sw.js').catch(() => {
         /* Offline caching is a bonus; the app runs without it. */
