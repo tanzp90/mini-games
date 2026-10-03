@@ -122,3 +122,34 @@ are genuinely different" is the central claim of the design and is easy to
 break by accident.
 
 `jsconfig.json` turns on editor type checking against the JSDoc annotations.
+
+## Mini Grand Prix
+
+A separate top-down racing game for young children, in
+[`grand-prix/index.html`](grand-prix/index.html). It is a single file with no
+modules and nothing to load, so it opens straight off the filesystem, from
+any static host, or as an email attachment.
+
+- **Five cars** — Red Rocket, Orange Tiger, Blue Lightning, Green Gecko and
+  Pink Comet. Each has speed, turning and quick-start ratings that add up to
+  the same total, so no car is simply the best.
+- **Three tracks** — Green Valley (parkland, lakes, gravel traps), Harbour
+  City (street circuit with walls, rooftops and a marina) and Snowy Peaks
+  (pine forest, frozen lakes and snowmen).
+- **How it plays** — the car drives itself; two big arrow buttons (or either
+  half of the screen) steer. The track turns around the car so "left" always
+  means the car's left. Five red lights, then go. Driving on the white line
+  fills a bar that doubles points, stars on the track give bonus points, and
+  four rivals race alongside on easy, medium or fast.
+- **Gentle on small drivers** — barriers stop the car getting lost, a
+  "wrong way" sign appears if it turns round, and an optional steering
+  helper nudges it back when it drifts wide. The helper alone can finish a
+  race, so nobody is ever stuck.
+- **Tablet first** — big targets, multi-touch, no zoom or text selection,
+  landscape and portrait, a screen wake lock while racing, and a pause when
+  the tablet is put down. Sound is synthesised, best times and wins stay on
+  the device.
+
+```sh
+node tests/grand-prix.mjs   # menus, then one hands-off lap of each track
+```

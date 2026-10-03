@@ -9,7 +9,8 @@
     "test:ai": "node tests/ai-strength.mjs",
     "test:smoke": "node tests/smoke.mjs",
     "test:e2e": "node tests/e2e.mjs",
-    "build:single": "node tools/build-single-file.mjs"
+    "build:single": "node tools/build-single-file.mjs",
+    "test:gp": "node tests/grand-prix.mjs"
   },
   "//": "The app itself has no runtime dependencies and no build step. These are development tools only: a static server to run it, and a browser to test it in.",
   "devDependencies": {
